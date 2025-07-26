@@ -55,8 +55,7 @@
         <option value="user">Regular User</option>
         <option value="business">Business Account</option>
       </select>
-
-      <button onclick="signup()">Sign Up</button>
+<button id="signupBtn">Sign Up</button>
       <a onclick="showLogin()">Already have an account? Login</a>
       <p class="error" id="signupError"></p>
     </div>
@@ -151,8 +150,7 @@
   // Attach events when page is ready
   document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("loginBtn").addEventListener("click", login);
-    document.querySelector("#signupForm button").addEventListener("click", signup);
-  });
+    document.getElementById("signupBtn").addEventListener("click", signup);  });
 
   // Expose globally
   window.login = login;
