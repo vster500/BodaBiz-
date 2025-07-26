@@ -33,7 +33,7 @@
   <h2>Login to BodaBiz</h2>
   <input type="email" id="loginEmail" placeholder="Email" required />
   <input type="password" id="loginPassword" placeholder="Password" required />
-  <button onclick="login()">Login</button>
+  <button id="loginBtn">Login</button>
   <a onclick="showSignup()">Don't have an account? Sign Up</a>
   <a onclick="resetPassword()">Forgot Password?</a>
   <a href="help.html">❓ Need Help / FAQs</a>
@@ -135,5 +135,18 @@
           .catch(e => alert(e.message));
       }
     }
-  </script></body>
-</html>
+  </script>
+  <script>
+  // Expose functions globally if needed
+  window.login = login;
+  window.signup = signup;
+  window.showSignup = showSignup;
+  window.showLogin = showLogin;
+  window.resetPassword = resetPassword;
+
+  // Attach event after DOM is ready
+  document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("loginBtn").addEventListener("click", login);
+  });
+</script></body>
+      </html>
