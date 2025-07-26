@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Register Business - BodaBiz</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f5fff7; }
+    .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    h2 { text-align: center; color: #0bb35f; }
+    label { margin-top: 12px; display: block; font-weight: bold; }
+    input, select, textarea, button {
+      width: 100%; padding: 10px; margin-top: 6px;
+      border-radius: 6px; border: 1px solid #ccc;
+    }
+    button { background: #0bb35f; color: white; font-weight: bold; cursor: pointer; }
+    #transportDropdown { display: none; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h2>🚀 Register Your Business</h2>
+
+  <label>Business Name</label>
+  <input type="text" id="bizName" placeholder="e.g. Kalonzo Spares"/>
+
+  <label>Business WhatsApp</label>
+  <input type="text" id="bizPhone" placeholder="e.g. 07XXXXXXXX"/>
+
+  <label>Email</label>
+  <input type="email" id="bizEmail" placeholder="e.g. example@gmail.com"/>
+
+  <label>Business Bio</label>
+  <textarea id="bizBio" rows="3" placeholder="Describe your business..."></textarea>
+
+  <label>Business Category</label>
+  <select id="bizCategory" onchange="toggleTransport()">
+    <option disabled selected>Select Category</option>
+    <option>🛍 Market</option>
+    <option>🍻 Bar & Lodging</option>
+    <option>🛠 Spares</option>
+    <option>👔 Professionals</option>
+    <option>🏨 Hotel</option>
+    <option>🚚 Transport</option>
+    <option>🏥 Health</option>
+    <option>🏫 Institution</option>
+    <option>🏭 Company</option>
+    <option>👗 Fashion</option>
+    <option>📦 Others</option>
+    <option>🙏 Religion</option>
+    <option>🚨 Emergency</option>
+  </select>
+
+  <div id="transportDropdown">
+    <label>Transport Mode</label>
+    <select id="bizTransport">
+      <option>🛒 Pushcart</option>
+      <option>🚲 Bicycle</option>
+      <option>🏍 Rider</option>
+      <option>🛺 Tuktuk</option>
+      <option>🚗 Uber</option>
+      <option>🚌 Bus</option>
+      <option>🚐 Shuttle</option>
+      <option>🛻 Pickup</option>
+      <option>🚛 Lorry</option>
+      <option>🚚 Trailer</option>
+      <option>🚢 Ship</option>
+    </select>
+  </div>
+
+  <label>📷 Upload Business Photo</label>
+  <input type="file" id="bizImage" accept="image/*"/>
+
+  <label>📍 Country</label>
+  <input type="text" id="bizCountry" placeholder="Start typing e.g. Kenya"/>
+
+  <label>County</label>
+  <input type="text" id="bizCounty" placeholder="Start typing e.g. Kitui"/>
+
+  <label>Ward / Area</label>
+  <input type="text" id="bizWard" placeholder="Start typing e.g. Kyangwithya East"/>
+
+  <label>Longitude</label>
+  <input type="text" id="longitude"/>
+
+  <label>Latitude</label>
+  <input type="text" id="latitude"/>
+
+  <button onclick="pinLocation()">📍 Pin My Location</button>
+  <button onclick="saveBusiness()">✅ Save Business</button>
+
+  <p id="status"></p>
+</div>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+    authDomain: "vster-69f85.firebaseapp.com",
+    databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+    projectId: "vster-69f85",
+    storageBucket: "vster-69f85.appspot.com",
+    messagingSenderId: "332765437206",
+    appId: "1:332765437206:web:4903595014ed6d0fc10fc5"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const auth = firebase.auth();
+  const storage = firebase.storage();
+
+  function toggleTransport() {
+    const category = document.getElementById("bizCategory").value;
+    document.getElementById("transportDropdown").style.display = category === "🚚 Transport" ? "block" : "none";
+  }
+
+  function pinLocation() {
+    if (!navigator.geolocation) return alert("Geolocation not supported");
+    navigator.geolocation.getCurrentPosition(pos => {
+      document.getElementById("latitude").value = pos.coords.latitude;
+      document.getElementById("longitude").value = pos.coords.longitude;
+    }, err => alert("Failed to fetch location: " + err.message));
+  }
+
+  function saveBusiness() {
+    const uid = firebase.auth().currentUser?.uid;
+    if (!uid) return alert("Login first.");
+
+    const bizImage = document.getElementById("bizImage").files[0];
+    const bizData = {
+      name: document.getElementById("bizName").value,
+      phone: document.getElementById("bizPhone").value,
+      email: document.getElementById("bizEmail").value,
+      bio: document.getElementById("bizBio").value,
+      category: document.getElementById("bizCategory").value,
+      transport: document.getElementById("bizTransport")?.value || "",
+      country: document.getElementById("bizCountry").value,
+      county: document.getElementById("bizCounty").value,
+      ward: document.getElementById("bizWard").value,
+      latitude: document.getElementById("latitude").value,
+      longitude: document.getElementById("longitude").value,
+      badge: "newbie",
+      created_at: Date.now()
+    };
+
+    const ref = db.ref("users/" + uid + "/business");
+
+    // only allow 1 business per account
+    ref.once("value").then(snapshot => {
+      if (snapshot.exists()) {
+        document.getElementById("status").innerText = "⚠️ Only one business allowed per account.";
+        return;
+      }
+
+      if (bizImage) {
+        const imgRef = storage.ref("business_photos/" + uid + "_" + Date.now());
+        imgRef.put(bizImage).then(upload => upload.ref.getDownloadURL()).then(url => {
+          bizData.photo = url;
+          ref.set(bizData).then(() => finish());
+        });
+      } else {
+        ref.set(bizData).then(() => finish());
+      }
+    });
+
+    function finish() {
+      // Add business to feed (in area-based category)
+      const areaKey = `${bizData.country}_${bizData.county}_${bizData.ward}`;
+      db.ref("feeds/" + areaKey).push({
+        type: "new_business",
+        name: bizData.name,
+        category: bizData.category,
+        photo: bizData.photo || "",
+        badge: "newbie",
+        timestamp: Date.now()
+      });
+
+      document.getElementById("status").innerText = "✅ Business registered!";
+      setTimeout(() => window.location.href = "index.html", 2000);
+    }
+  }
+</script>
+</body>
+</html>

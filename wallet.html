@@ -1,0 +1,143 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Wallet - BodaBiz</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <style>
+    body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #f5fff7; padding: 20px; }
+    .header { background: #0bb35f; color: white; padding: 15px; text-align: center; font-size: 1.3rem; font-weight: bold; }
+    .balance-box, .form-box { background: white; padding: 20px; border-radius: 10px; margin-top: 20px; box-shadow: 0 0 6px rgba(0,0,0,0.1); }
+    .balance { font-size: 2rem; color: #0bb35f; font-weight: bold; text-align: center; }
+    .note { margin-top: 20px; background: #fff8e1; padding: 15px; border-left: 5px solid #ffc107; border-radius: 6px; font-size: 0.95rem; }
+    input, select, textarea, button { width: 100%; padding: 10px; margin: 8px 0; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; }
+    button { background: #0bb35f; color: white; font-weight: bold; border: none; cursor: pointer; }
+    .back-btn { display: inline-block; margin-top: 20px; padding: 10px 15px; background: #0bb35f; color: white; border-radius: 6px; text-decoration: none; font-weight: bold; }
+    .success { color: green; font-weight: bold; text-align: center; margin-top: 10px; }
+  </style>
+</head>
+<body>  <div class="header">💼 My Wallet</div>  <div class="balance-box">
+    <div>Your Balance:</div>
+    <div class="balance" id="walletBalance">BodaCash 0</div>
+  </div>  <div class="note">
+    💡 <strong>Note:</strong><br>
+   This is just temporary as we develop our site.
+   
+   You can top up your wallet manually via:<br><br>
+    ✅ <strong>Pochi la Biashara:</strong> 0769883456<br>
+    ✅ <strong>PayPal:</strong> levisbonventure@gmail.com<br><br>
+    After sending, submit the form below to notify the admin. Your wallet will be updated manually for now.
+  </div>  <div class="form-box">
+    <h3>📤 Top-Up Notification</h3>
+    <input type="number" id="amount" placeholder="Amount Sent (KES)" />
+    <select id="method">
+      <option value="">Select Method</option>
+      <option>M-PESA - Pochi</option>
+      <option>PayPal</option>
+    </select>
+    <textarea id="note" placeholder="Optional note or transaction code..."></textarea>
+    <button onclick="submitTopUp()">Submit Notification</button>
+    <div class="success" id="successMsg"></div>
+  </div>  <div class="form-box">
+    <h3>🔁 Send BodaCash to Another User</h3>
+    <input type="text" id="recipientEmail" placeholder="Recipient's Email" />
+    <input type="number" id="sendAmount" placeholder="Amount to Send (KES)" />
+    <button onclick="sendBodaCash()">Send</button>
+    <div class="success" id="sendMsg"></div>
+  </div>  <div class="form-box">
+    <h3>💸 Request Withdrawal</h3>
+    <input type="number" id="withdrawAmount" placeholder="Amount to Withdraw" />
+    <select id="withdrawMethod">
+      <option value="">Select Method</option>
+      <option>M-PESA</option>
+      <option>PayPal</option>
+    </select>
+    <input type="text" id="withdrawContact" placeholder="Phone Number or PayPal Email" />
+    <button onclick="requestWithdrawal()">Request Withdrawal</button>
+    <div class="success" id="withdrawMsg"></div>
+  </div><a class="back-btn" href="profile.html">← Back to Profile</a>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+      authDomain: "vster-69f85.firebaseapp.com",
+      databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+      projectId: "vster-69f85",
+      storageBucket: "vster-69f85.appspot.com",
+      messagingSenderId: "332765437206",
+      appId: "1:332765437206:web:4903595014ed6d0fc10fc5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+    let currentUserId = "";
+
+    auth.onAuthStateChanged(user => {
+      if (!user) {
+        alert("Please log in to view your wallet.");
+        window.location.href = "login.html";
+        return;
+      }
+      currentUserId = user.uid;
+      db.ref("users/" + currentUserId + "/wallet").on("value", snap => {
+        const balance = snap.val() || 0;
+        document.getElementById("walletBalance").innerText = `KES ${balance}`;
+      });
+    });
+
+    function submitTopUp() {
+      const amount = document.getElementById("amount").value;
+      const method = document.getElementById("method").value;
+      const note = document.getElementById("note").value;
+      const successMsg = document.getElementById("successMsg");
+      if (!amount || !method) return alert("Fill in all required fields.");
+      const data = { uid: currentUserId, amount: parseInt(amount), method, note, timestamp: Date.now() };
+      db.ref("wallet_requests").push(data).then(() => {
+        successMsg.textContent = "✅ Request sent! Admin will update soon.";
+        document.getElementById("amount").value = "";
+        document.getElementById("method").value = "";
+        document.getElementById("note").value = "";
+      });
+    }
+
+    function sendBodaCash() {
+      const recipientEmail = document.getElementById("recipientEmail").value.trim();
+      const amount = parseInt(document.getElementById("sendAmount").value);
+      if (!recipientEmail || !amount) return alert("Fill in both fields.");
+
+      db.ref("users").orderByChild("email").equalTo(recipientEmail).once("value", snap => {
+        if (!snap.exists()) return alert("User not found.");
+        const recipientId = Object.keys(snap.val())[0];
+        db.ref(`users/${currentUserId}/wallet`).once("value", s1 => {
+          let senderBalance = s1.val() || 0;
+          if (senderBalance < amount) return alert("Insufficient balance.");
+
+          db.ref(`users/${recipientId}/wallet`).once("value", s2 => {
+            let receiverBalance = s2.val() || 0;
+            db.ref(`users/${currentUserId}`).update({ wallet: senderBalance - amount });
+            db.ref(`users/${recipientId}`).update({ wallet: receiverBalance + amount });
+            document.getElementById("sendMsg").textContent = "✅ Sent successfully.";
+            document.getElementById("recipientEmail").value = "";
+            document.getElementById("sendAmount").value = "";
+          });
+        });
+      });
+    }
+
+    function requestWithdrawal() {
+      const amount = parseInt(document.getElementById("withdrawAmount").value);
+      const method = document.getElementById("withdrawMethod").value;
+      const contact = document.getElementById("withdrawContact").value;
+      if (!amount || !method || !contact) return alert("Fill in all fields.");
+      const data = { uid: currentUserId, amount, method, contact, timestamp: Date.now(), status: "pending" };
+      db.ref("withdrawal_requests").push(data).then(() => {
+        document.getElementById("withdrawMsg").textContent = "✅ Withdrawal request sent.";
+        document.getElementById("withdrawAmount").value = "";
+        document.getElementById("withdrawMethod").value = "";
+        document.getElementById("withdrawContact").value = "";
+      });
+    }
+  </script></body>
+</html>

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BodaBiz - Comments</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <style>
+    body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #f0fff5; }
+    header { background: #0bb35f; padding: 1rem; color: white; text-align: center; font-weight: bold; }
+    .comment-section { padding: 1rem; max-height: 80vh; overflow-y: auto; }
+    .comment-box { background: white; padding: 10px; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .comment-header { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+    .profile-pic { width: 35px; height: 35px; border-radius: 50%; object-fit: cover; }
+    .comment-name { font-weight: bold; font-size: 0.95rem; }
+    .comment-text { font-size: 0.95rem; color: #222; margin-top: 4px; }
+    .timestamp { font-size: 0.75rem; color: #888; margin-left: auto; }
+    .comment-input { display: flex; gap: 10px; padding: 10px; background: white; border-top: 1px solid #ddd; }
+    .comment-input input { flex: 1; padding: 10px; border-radius: 20px; border: 1px solid #ccc; }
+    .comment-input button { background: #0bb35f; border: none; color: white; padding: 10px 15px; border-radius: 20px; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+<header>💬 Comments</header>
+
+<div class="comment-section" id="commentsContainer">Loading comments...</div>
+
+<div class="comment-input">
+  <input type="text" id="commentInput" placeholder="Write a comment..." />
+  <button onclick="submitComment()">Send</button>
+</div>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+    authDomain: "vster-69f85.firebaseapp.com",
+    databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+    projectId: "vster-69f85",
+    storageBucket: "vster-69f85.appspot.com",
+    messagingSenderId: "332765437206",
+    appId: "1:332765437206:web:4903595014ed6d0fc10fc5"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const auth = firebase.auth();
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const postId = urlParams.get("postId");
+  const commentsContainer = document.getElementById("commentsContainer");
+
+  function loadComments() {
+    db.ref("comments/" + postId).on("value", snap => {
+      commentsContainer.innerHTML = "";
+      snap.forEach(child => {
+        const c = child.val();
+        const html = `
+          <div class="comment-box">
+            <div class="comment-header">
+              <img class="profile-pic" src="${c.profilePic || 'user.jpg'}" />
+              <div class="comment-name">${c.name || 'Anonymous'}</div>
+              <div class="timestamp">${new Date(c.timestamp || Date.now()).toLocaleTimeString()}</div>
+            </div>
+            <div class="comment-text">${c.text}</div>
+          </div>`;
+        commentsContainer.innerHTML += html;
+      });
+      if (snap.numChildren() === 0) {
+        commentsContainer.innerHTML = "<p style='text-align:center;'>No comments yet</p>";
+      }
+    });
+  }
+
+  function submitComment() {
+    const text = document.getElementById("commentInput").value.trim();
+    if (!text) return alert("Enter your comment");
+    
+    auth.onAuthStateChanged(user => {
+      if (!user) return alert("Login to comment");
+
+      db.ref("users/" + user.uid).once("value").then(userSnap => {
+        const userData = userSnap.val() || {};
+        const newCommentRef = db.ref("comments/" + postId).push();
+        newCommentRef.set({
+          text,
+          uid: user.uid,
+          name: userData.name || "User",
+          profilePic: userData.profilePic || "",
+          timestamp: Date.now()
+        });
+        document.getElementById("commentInput").value = "";
+      });
+    });
+  }
+
+  loadComments();
+</script>
+
+</body>
+</html>

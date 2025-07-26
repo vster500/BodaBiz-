@@ -1,0 +1,374 @@
+<!DOCTYPE html><html lang="en">
+<head>  
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Profile - BodaBiz</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter&display=swap">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #f0fff4;
+      margin: 0;
+      padding: 20px;
+      color: #1b5e20;
+      font-size: 14px;
+    }
+    .profile-container {
+      max-width: 700px;
+      margin: auto;
+      background: #ffffff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+    h2 {
+      color: #0b9444;
+      margin-bottom: 1rem;
+    }
+    label {
+      font-weight: 600;
+      display: block;
+      margin-top: 15px;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      border-radius: 8px;
+      border: 1px solid #c8e6c9;
+      font-size: 1rem;
+      background-color: #f9fff9;
+    }
+    button {
+      background: #0bb35f;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      margin-top: 20px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 1rem;
+    }
+    button:hover {
+      background-color: #087f23;
+    }
+    .logout {
+      text-align: right;
+      margin-bottom: 20px;
+    }
+    .logout button {
+      background: #c62828;
+    }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="profile-container">
+    <div class="logout">
+      <button onclick="logout()">Logout</button>
+    </div>
+    <h2>👤 Edit Your Profile</h2>
+    <label for="displayName">Full Name (No Emojis)</label>
+    <input type="text" id="displayName" placeholder="e.g. John Doe" maxlength="50" />
+    <div id="badgeDisplay" style="margin-top: 5px; font-weight: bold; color: #0b9444;"></div><label for="email">Email</label>
+<input type="email" id="email" disabled />
+
+<label for="contact">Contact (WhatsApp or Phone)</label>
+<input type="text" id="contact" placeholder="e.g. 0712xxxxxx" />
+
+<label for="bio">Short Bio / How you can be reached</label>
+<textarea id="bio" rows="3"></textarea>
+
+<label for="accountType">Account Type</label>
+<select id="accountType" onchange="toggleBusinessForm()">
+  <option value="user">Regular User</option>
+  <option value="business">Business Account</option>
+</select>
+
+<label for="area">Your Area / Ward</label>
+<input type="text" id="area" placeholder="e.g. Kibra" />
+
+<label for="wallet">Wallet Balance (readonly)</label>
+<input type="text" id="wallet" disabled />
+
+<div id="businessDetails" class="hidden">
+  <label>Business Category</label>
+  <select id="businessCategory">
+    <option>🛍 Market</option>
+    <option>🍻 Bar & Lodging</option>
+    <option>🚰 Spares</option>
+    <option>💼 Professionals</option>
+    <option>🏨 Hotel</option>
+    <option>🚚 Transport</option>
+    <option>🏥 Health</option>
+    <option>🏫 Institution</option>
+    <option>🏭 Company</option>
+    <option>👗 Fashion</option>
+    <option>📦 Others</option>
+    <option>🙏 Religion</option>
+    <option>🚨 Emergency</option>
+  </select>
+  <div id="transportTypeContainer" class="hidden">
+    <label>Select Transport Type</label>
+    <select id="transportType">
+      <option>🛒 Pushcart</option>
+      <option>🚲 Bicycle</option>
+      <option>🏍 Rider</option>
+      <option>🙺 Tuktuk</option>
+      <option>🚗 Uber</option>
+      <option>🚌 Bus</option>
+      <option>🚐 Shuttle</option>
+      <option>🚛 Pickup</option>
+      <option>🚛 Lorry</option>
+      <option>🚚 Trailer</option>
+      <option>🚢 Ship</option>
+    </select>
+  </div>
+  <button onclick="pinLocation()">📍 Use Current Location</button>
+  <p style="color: #666; font-size: 13px; margin-top: 8px;">
+    🔔 <strong>Tip:</strong> Please turn on your phone’s location (GPS) before using the pin button. This helps us auto-detect your business location.
+  </p>
+  <label>Manual Latitude</label>
+  <input type="text" id="manualLat" placeholder="Optional if GPS fails">
+  <label>Manual Longitude</label>
+  <input type="text" id="manualLon" placeholder="Optional if GPS fails">
+  <label>Upload Business Photo</label>
+<input type="file" id="bizPhoto" accept="image/*">
+  <div id="locationStatus"></div>
+</div>
+<button onclick="saveSettings()">📀 Save Settings</button>
+<button onclick="previewBusiness()">👀 Preview My Business Post</button>
+
+  </div>  <!-- Firebase -->  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script> <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js"></script> <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+      authDomain: "vster-69f85.firebaseapp.com",
+      databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+      projectId: "vster-69f85",
+      storageBucket: "vster-69f85.appspot.com",
+      messagingSenderId: "332765437206",
+      appId: "1:332765437206:web:4903595014ed6d0fc10fc5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+    let uid = null, country = "", county = "", ward = "", lat = null, lon = null;
+auth.onAuthStateChanged(user => {
+  if (!user) return location.href = "login.html";
+  uid = user.uid;
+  document.getElementById("email").value = user.email;
+  loadUserData(uid);
+});
+
+function loadUserData(uid) {
+  db.ref("users/" + uid + "/profile").once("value").then(snap => {
+    const data = snap.val() || {};
+    document.getElementById("displayName").value = data.name || "";
+    document.getElementById("contact").value = data.contact || "";
+    document.getElementById("bio").value = data.bio || "";
+    document.getElementById("area").value = data.area || "";
+    document.getElementById("accountType").value = data.accountType || "user";
+     document.getElementById("badgeDisplay").textContent = data.badge ? `🏅 Badge: ${data.badge}` : "";
+    toggleBusinessForm();
+  });
+}
+
+    function getBadgeEmoji(badge) {
+      switch (badge) {
+        case "Bronze": return "🥉";
+        case "Silver": return "🥈";
+        case "Gold": return "🥇";
+        case "Diamond": return "💎";
+        case "Platinum": return "🏆";
+        case "Moderator": return "🚡";
+        case "Top User": return "🌟";
+        case "Verified": return "✅";
+        default: return "";
+      }
+    }
+
+    function containsEmoji(str) {
+      return /[\p{Emoji}]/u.test(str);
+    }
+
+    function toggleBusinessForm() {
+      const isBusiness = document.getElementById("accountType").value === "business";
+      document.getElementById("businessDetails").classList.toggle("hidden", !isBusiness);
+    }
+   
+    // Show/hide transport type dropdown based on category selected
+document.getElementById("businessCategory").addEventListener("change", function () {
+  const isTransport = this.value === "🚚 Transport";
+  document.getElementById("transportTypeContainer").classList.toggle("hidden", !isTransport);// Show transport type dropdown only if "🚚 Transport" is selected
+});
+
+    function pinLocation() {
+      const status = document.getElementById("locationStatus");
+      status.textContent = "Getting location...";
+      navigator.geolocation.getCurrentPosition(pos => {
+        lat = pos.coords.latitude;
+        lon = pos.coords.longitude;
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`)
+          .then(res => res.json())
+          .then(data => {
+            country = data.address.country || "";
+            county = data.address.state || "";
+            ward = data.address.suburb || data.address.village || data.address.city || "";
+            status.textContent = `📌 Pinned: ${ward}, ${county}, ${country}`;
+          });
+      }, () => {
+        status.textContent = "❌ Unable to access location.";
+      });
+    }
+
+    async function saveSettings() {
+  const name = document.getElementById("displayName").value;
+  if (containsEmoji(name)) return alert("No emojis allowed in name.");
+
+  const accountType = document.getElementById("accountType").value;
+  const profile = {
+    name,
+    contact: document.getElementById("contact").value,
+    bio: document.getElementById("bio").value,
+    accountType,
+    area: document.getElementById("area").value
+  };
+
+  db.ref("users/" + uid + "/profile").update(profile)
+    .then(() => {
+      updateBadgeRank(uid);
+      if (accountType === "business") {
+        lat = lat || parseFloat(document.getElementById("manualLat").value);
+        lon = lon || parseFloat(document.getElementById("manualLon").value);
+        if (!lat || !lon) return alert("❌ Please pin your business location first.");
+
+        db.ref("users/" + uid + "/profile/badge").once("value").then(async badgeSnap => {
+          const badge = badgeSnap.val() || "";
+          await handleBusinessPost(uid, badge);
+        });
+      } else {
+        alert("✅ Profile updated.");
+      }
+    })
+    .catch(err => alert("❌ Error: " + err.message));
+}
+
+  async function handleBusinessPost(uid, badge) {
+    const file = document.getElementById("bizPhoto").files[0];
+    let photoURL = "";
+
+    if (file) {
+      const storageRef = firebase.storage().ref("biz_photos/" + uid + "_" + Date.now());
+      await storageRef.put(file);
+      photoURL = await storageRef.getDownloadURL();
+    }
+
+    const name = document.getElementById("displayName").value;
+    const contact = document.getElementById("contact").value;
+
+    const biz = {
+      name,
+      contact,
+      category: document.getElementById("businessCategory").value,
+      lat,
+      lon,
+      county,
+      country,
+      ward,
+      timestamp: Date.now(),
+      photoURL,
+      badge
+    };
+
+    if (biz.category === "🚚 Transport") {
+      biz.transportType = document.getElementById("transportType").value;
+    }
+
+    await db.ref("users/" + uid + "/businesses").push(biz);
+    await db.ref("posts").push({ ...biz, uid, photoURL, badge, boosted: false });
+
+    alert(`✅ Business info posted!\nName: ${name}\nCategory: ${biz.category}\nWard: ${ward}, ${county}`);
+    location.href = "index.html";
+  }
+
+  function updateBadgeRank(userId) {
+    db.ref("reviews/" + userId).once("value", snap => {
+      const reviews = [];
+      snap.forEach(child => reviews.push(child.val()));
+      const avg = reviews.reduce((sum, r) => sum + (parseInt(r.rating) || 0), 0) / (reviews.length || 1);
+      let badge = "";
+
+      if (avg >= 4.8 && reviews.length > 20) badge = "Platinum";
+      else if (avg >= 4.5 && reviews.length > 15) badge = "Diamond";
+      else if (avg >= 4.0 && reviews.length > 10) badge = "Gold";
+      else if (avg >= 3.5 && reviews.length > 5) badge = "Silver";
+      else if (avg >= 3.0 && reviews.length > 2) badge = "Bronze";
+
+      db.ref("users/" + userId + "/profile").update({ badge });
+    });
+  }
+</script>
+   <nav class="bottom-nav">
+    <a href="index.html">🏠 Feeds</a>
+    <a href="category.html">📦 Categories</a>
+    <a href="chat.html" id="msgIcon">💬 <span id="msgDot" class="notif-dot" style="display:none;"></span></a>
+    <a href="profile.html">👤 Profile</a>
+  </nav>  <style>
+    nav.bottom-nav {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      display: flex;
+      background: #ffffff;
+      box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
+      justify-content: space-around;
+      border-top: 1px solid #ddd;
+      z-index: 999;
+    }
+    nav.bottom-nav a {
+      flex: 1;
+      text-align: center;
+      padding: 0.7rem 0;
+      color: #0bb35f;
+      text-decoration: none;
+      font-size: 0.9rem;
+      position: relative;
+    }
+    .notif-dot {
+      position: absolute;
+      top: 5px;
+      right: 30%;
+      background: red;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+  </style>  <script>
+    auth.onAuthStateChanged(user => {
+      if (!user) return;
+      const uid = user.uid;
+      const msgDot = document.getElementById("msgDot");
+      db.ref("chats").on("value", snap => {
+        let unread = 0;
+        snap.forEach(chat => {
+          chat.forEach(msg => {
+            const m = msg.val();
+            if (m.sender !== uid && (!m.readBy || !m.readBy[uid])) {
+              unread++;
+            }
+          });
+        });
+        msgDot.style.display = unread > 0 ? "inline-block" : "none";
+      });
+    });
+     function previewBusiness() {
+  const name = document.getElementById("displayName").value;
+  const category = document.getElementById("businessCategory").value;
+  alert(`📢 Business: ${name}\n📂 Category: ${category}\n✅ Looks good? Proceed to save.`);
+}
+function logout() {
+  auth.signOut().then(() => location.href = "login.html");
+}
+  </body>
+</html>

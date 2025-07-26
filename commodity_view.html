@@ -1,0 +1,314 @@
+<!DOCTYPE html><html lang="en"><head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Commodities - BodaBiz</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <style>
+  #emergencyBtn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #e53935;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 60px;
+  height: 60px;
+  font-size: 22px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  cursor: move;
+  z-index: 999;
+}
+    body { font-family: 'Segoe UI', sans-serif; background: #f1fdf5; margin: 0; padding: 10px; }
+    header { background: #0bb35f; color: white; padding: 15px; font-size: 1.3rem; font-weight: bold; }
+    #map { height: 250px; border-radius: 12px; margin: 10px 0; }
+    .note { background: #e8fbee; color: #0b6845; padding: 10px; margin-top: 10px; border-left: 5px solid #0bb35f; font-weight: bold; }
+    .search-filter { display: flex; gap: 10px; margin: 15px 0; flex-wrap: wrap; }
+    .search-filter input, .search-filter select { padding: 10px; border: 1px solid #ccc; border-radius: 6px; width: 100%; max-width: 200px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 15px; }
+    .card { background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 5px rgba(0,0,0,0.1); }
+    .card img { width: 100%; height: 130px; object-fit: cover; }
+    .card-body { padding: 10px; font-size: 0.9rem; }
+    .badge { font-size: 0.8rem; padding: 2px 6px; border-radius: 4px; margin-left: 4px; display: inline-block; }
+    .user-badge { background: #007bff; color: white; }
+    .business-badge { background: #0bb35f; color: white; }
+    .btn { display: block; background: #0bb35f; color: white; padding: 6px 10px; border: none; border-radius: 5px; margin-top: 8px; text-align: center; cursor: pointer; font-size: 0.85rem; text-decoration: none; }
+    .boosted { background: gold; color: #222; font-weight: bold; font-size: 0.7rem; border-radius: 4px; padding: 2px 4px; margin-left: 4px; }
+  </style>
+</head>
+<body>
+  <button id="emergencyBtn">🚨 Emergency</button>
+  <header>BodaBiz</header>
+  <div style="margin: 10px 0; display:flex; gap:10px;">
+  <a href="movies.html" class="btn" style="flex:1;">🎬 Movies</a>
+  <a href="notes.html" class="btn" style="flex:1;">📝 Notes</a>
+</div>
+  <div class="note" id="deliveryNote">Delivery @ 50/= – Contact: 0700000000</div>
+  <div id="map"></div>
+  <div id="topRiders" class="note">
+  🏆 Top 5 Riders Near You
+  <ul id="riderList" style="padding-left: 18px; font-size: 0.95rem;"></ul>
+  <a href="leaderboard.html" class="btn">See More</a>
+</div>
+  <div class="search-filter">
+    <input type="text" id="searchBox" placeholder="Search item..." oninput="renderFeed()" />
+    <select id="filterCategory" onchange="handleCategoryChange()">
+      <option value="">All Categories</option>
+      <option>🛍 Market</option>
+      <option>🍻 Bar & Lodging</option>
+      <option>🛠 Spares</option>
+      <option>👔 Professionals</option>
+      <option>🏨 Hotel</option>
+      <option>🚚 Transport</option>
+      <option>🎬 Movies</option>
+      <option>📝 Notes</option>
+      <option>🏭 Company</option>
+      <option>👗 Fashion</option>
+      <option>🙏 Religion</option>
+      <option>🚨 Emergency</option>
+      <option>💊 Health</option>
+      <option>🏫 Institution</option>
+      <option>📦 Others</option>
+    </select>
+    <select id="transportMode" style="display:none;" onchange="renderFeed(); loadMapItems();">
+      <option value="">All Modes</option>
+      <option>🛒 Pushcart</option>
+      <option>🚲 Bicycle</option>
+      <option>🏍 Rider</option>
+      <option>🛺 Tuktuk</option>
+      <option>🚗 Uber</option>
+      <option>🚌 Bus</option>
+      <option>🚐 Shuttle</option>
+      <option>🛻 Pickup</option>
+      <option>🚛 Lorry</option>
+      <option>🚚 Trailer</option>
+      <option>🚢 Ship</option>
+    </select>
+  </div>
+  <div class="grid" id="commodityGrid">Loading...</div>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+      authDomain: "vster-69f85.firebaseapp.com",
+      databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+      projectId: "vster-69f85",
+      storageBucket: "vster-69f85.appspot.com",
+      messagingSenderId: "332765437206",
+      appId: "1:332765437206:web:4903595014ed6d0fc10fc5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();let commodities = [];
+let map, markers = [];
+const grid = document.getElementById("commodityGrid");
+let userArea = "";
+
+firebase.auth().onAuthStateChanged(user => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const presetCategory = urlParams.get("category");
+  if (presetCategory) {
+    document.getElementById("filterCategory").value = presetCategory;
+    handleCategoryChange();
+  }
+  if (user) {
+    db.ref("users/" + user.uid + "/profile/area").once("value", snap => {
+      userArea = snap.val() || "";
+      loadCommodities();
+    });
+    db.ref("admin/delivery").once("value", snap => {
+      const d = snap.val();
+      if (d && d.price && d.phone) {
+        document.getElementById("deliveryNote").innerText = `Delivery @ ${d.price}/= – Contact: ${d.phone}`;
+      }
+    });
+  } else {
+    loadCommodities();
+  }
+});
+
+function handleCategoryChange() {
+  const category = document.getElementById("filterCategory").value;
+  document.getElementById("transportMode").style.display = category.includes("Transport") ? "block" : "none";
+  renderFeed();
+  loadMapItems();
+}
+
+function initMap() {
+  map = L.map('map').setView([-1.286389, 36.817223], 14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; BodaBiz Map'
+  }).addTo(map);
+}
+
+function addMarker(lat, lng, label, badge, iconType) {
+  const icon = L.divIcon({
+    className: 'custom-marker',
+    html: iconType === "transport" ? '🚚' : '🏬',
+    iconSize: [24, 24]
+  });
+  const marker = L.marker([lat, lng], { icon }).addTo(map)
+    .bindPopup(`<b>${label}</b><br>${badge || ''}`);
+  markers.push(marker);
+}
+
+function loadMapItems() {
+  const selectedCategory = document.getElementById("filterCategory").value;
+  const mode = document.getElementById("transportMode").value;
+  markers.forEach(m => map.removeLayer(m));
+  markers = [];
+
+  db.ref("commodities").once("value", snap => {
+    snap.forEach(child => {
+      const item = child.val();
+      if (!item.lat || !item.lng) return;
+
+      const showOnMap = (
+        (item.category === selectedCategory && item.area === userArea) ||
+        (item.boosted || ["Gold", "Diamond", "Platinum"].includes(item.badge))
+      );
+      const isPostCategory = ["🎬 Movies", "📝 Notes"].includes(selectedCategory);
+
+      const matchMode = !mode || (item.transportMode === mode);
+
+      if (showOnMap && !isPostCategory && matchMode) {
+        addMarker(item.lat, item.lng, item.name || "Unknown", item.badge, item.category.includes("Transport") ? "transport" : "biz");
+      }
+    });
+  });
+}
+
+function loadCommodities() {
+  db.ref("commodities").on("value", snap => {
+    commodities = [];
+    snap.forEach(child => {
+      const item = child.val();
+      item.id = child.key;
+      commodities.push(item);
+    });
+    initMap();
+    renderFeed();
+    loadMapItems();
+  });
+}
+
+function renderFeed() {
+  const category = document.getElementById("filterCategory").value;
+  const mode = document.getElementById("transportMode").value;
+  const term = document.getElementById("searchBox").value.toLowerCase();
+
+  const filtered = commodities.filter(c => {
+    const matchCategory = !category || c.category === category;
+    const matchSearch = !term || (c.name && c.name.toLowerCase().includes(term));
+    const matchArea = c.area === userArea || term;
+    const highBadge = ["Gold", "Diamond", "Platinum"].includes(c.badge);
+    const matchMode = !mode || (c.transportMode === mode);
+    return matchCategory && matchSearch && (matchArea || c.boosted || highBadge) && matchMode;
+  });
+
+  grid.innerHTML = filtered.length ? "" : "<p>No commodities found</p>";
+  filtered.forEach(c => {
+    const card = document.createElement("div");
+    card.className = "card";
+    const badgeIcon = c.badge === "Bronze" ? "🥉" : c.badge === "Silver" ? "🥈" :
+                      c.badge === "Gold" ? "🥇" : c.badge === "Diamond" ? "💎" :
+                      c.badge === "Verified" ? "✅" : c.badge === "Top User" ? "🌟" :
+                      c.badge === "Moderator" ? "🛡" : "";
+    card.innerHTML = `
+      <img src="${c.imageURL || 'placeholder.jpg'}" />
+      <div class="card-body">
+        <strong>${c.name || 'Unnamed'} ${c.boosted ? '<span class="boosted">Boosted</span>' : ''}</strong><br>
+        <small>${c.category || 'Uncategorized'} – 📍 ${c.area || 'Unknown'}</small><br>
+        ${c.area !== userArea ? '<em>From ' + c.area + '</em><br>' : ''}
+        📞 ${c.contact || 'N/A'}<br>
+        ${c.badge ? `<span class="badge ${c.badgeType === 'user' ? 'user-badge' : 'business-badge'}">${badgeIcon} ${c.badge}</span>` : ''}
+        <a href="tel:${c.contact}" class="btn">Call Seller</a>
+        <a href="chat.html?uid=${c.uid}" class="btn">Message</a>
+        <a class="btn" style="background:#222">Request Delivery</a>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+function loadTopRiders() {
+  const list = document.getElementById("riderList");
+  db.ref("riders").orderByChild("rating").limitToLast(5).once("value", snap => {
+    const riders = [];
+    snap.forEach(child => riders.unshift(child.val())); // to sort highest first
+    list.innerHTML = riders.map(r => `<li>${r.name || 'Unnamed'} – ⭐ ${r.rating || 0}</li>`).join('');
+  });
+}
+loadTopRiders();window.addEventListener("DOMContentLoaded", () => {
+  const emergencyBtn = document.getElementById("emergencyBtn");
+  if (!emergencyBtn) return;
+
+  // Emergency filter on click
+  emergencyBtn.addEventListener("click", () => {
+    document.getElementById("filterCategory").value = "🚨 Emergency";
+    handleCategoryChange();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+// Make the button draggable
+  let isDragging = false, offsetX = 0, offsetY = 0;
+
+  emergencyBtn.addEventListener("mousedown", (e) => {
+    isDragging = true;
+    offsetX = e.clientX - emergencyBtn.getBoundingClientRect().left;
+    offsetY = e.clientY - emergencyBtn.getBoundingClientRect().top;
+  });
+
+  document.addEventListener("mousemove", (e) => {
+    if (isDragging) {
+      emergencyBtn.style.left = `${e.clientX - offsetX}px`;
+      emergencyBtn.style.top = `${e.clientY - offsetY}px`;
+      emergencyBtn.style.right = "auto";
+      emergencyBtn.style.bottom = "auto";
+      emergencyBtn.style.position = "fixed";
+    }
+  });
+
+  document.addEventListener("mouseup", () => {
+    isDragging = false;function loadTopRiders() {
+  // ... your top riders code
+}loadTopRiders();
+
+window.addEventListener("DOMContentLoaded", () => {
+  const emergencyBtn = document.getElementById("emergencyBtn");
+  if (!emergencyBtn) return;
+
+  // Emergency filter on click
+  emergencyBtn.addEventListener("click", () => {
+    document.getElementById("filterCategory").value = "🚨 Emergency";
+    handleCategoryChange();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+
+  // Make the button draggable
+  let isDragging = false, offsetX = 0, offsetY = 0;
+
+  emergencyBtn.addEventListener("mousedown", (e) => {
+    isDragging = true;
+    offsetX = e.clientX - emergencyBtn.getBoundingClientRect().left;
+    offsetY = e.clientY - emergencyBtn.getBoundingClientRect().top;
+  });
+
+  document.addEventListener("mousemove", (e) => {
+    if (isDragging) {
+      emergencyBtn.style.left = `${e.clientX - offsetX}px`;
+      emergencyBtn.style.top = `${e.clientY - offsetY}px`;
+      emergencyBtn.style.right = "auto";
+      emergencyBtn.style.bottom = "auto";
+      emergencyBtn.style.position = "fixed";
+    }
+  });
+
+  document.addEventListener("mouseup", () => {
+    isDragging = false;
+  });
+});
+
+</script>
+</body>
+</html>

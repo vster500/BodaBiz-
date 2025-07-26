@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin - Add Commodity | BodaBiz</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #f5fff7; margin: 0; padding: 20px; }
+    .container { max-width: 620px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    h2 { color: #0bb35f; text-align: center; }
+    label { display: block; margin-top: 12px; font-weight: bold; }
+    input, select, textarea, button {
+      width: 100%; padding: 10px; margin-top: 5px;
+      border-radius: 6px; border: 1px solid #ccc;
+    }
+    button {
+      background: #0bb35f; color: white; border: none;
+      cursor: pointer; font-weight: bold; margin-top: 20px;
+    }
+    .top-bar {
+      background: #0bb35f; color: white;
+      padding: 15px; font-size: 1.2rem;
+      font-weight: bold; border-radius: 8px;
+      margin-bottom: 15px;
+    }
+  </style>
+</head>
+<body>
+<div class="top-bar">BodaBiz - Admin Commodity Upload</div>
+
+<div class="container">
+  <h2>Add New Commodity</h2>
+
+  <label>Commodity Name</label>
+  <input type="text" id="name" placeholder="e.g. Cement, Potatoes" />
+
+  <label>Category</label>
+  <select id="category">
+    <option>🛍 Market</option>
+    <option>🍻 Bar & Lodging</option>
+    <option>🛠 Spares</option>
+    <option>👔 Professionals</option>
+    <option>🏨 Hotel</option>
+    <option>🚚 Transport</option>
+    <option>🏭 Company</option>
+    <option>👗 Fashion</option>
+    <option>📦 Others</option>
+    <option>🙏 Religion</option>
+    <option>🚨 Emergency</option>
+    <option>🎓 Education</option>
+    <option>🧑‍⚕️ Health</option>
+  </select>
+
+  <label>Area (Location)</label>
+  <input type="text" id="area" placeholder="e.g. Kibra or Kajiado" />
+
+  <label>Contact (Phone/WhatsApp)</label>
+  <input type="text" id="contact" placeholder="e.g. 07XXXXXX" />
+
+  <label>Delivery Note / Extra Note</label>
+  <textarea id="note" rows="2" placeholder="e.g. Delivery at 50/= Call 07..." ></textarea>
+
+  <label>Upload Image</label>
+  <input type="file" id="image" accept="image/*" />
+
+  <label>🌍 Visibility Level</label>
+  <select id="visibility">
+    <option value="ward">🏘️ Ward</option>
+    <option value="county">🏞️ County</option>
+    <option value="country">🌐 Country</option>
+    <option value="global">🛰️ Global</option>
+  </select>
+
+  <label>Target Ward</label>
+  <input type="text" id="targetWard" placeholder="e.g. Woodley/Kenyatta Golf" />
+
+  <label>Target County</label>
+  <input type="text" id="targetCounty" placeholder="e.g. Nairobi, Bungoma" />
+
+  <label>Target Country</label>
+  <input type="text" id="targetCountry" placeholder="e.g. Kenya, Uganda" />
+
+  <button onclick="autofillLocation()">📍 Auto Pin My Location</button>
+
+  <button onclick="uploadCommodity()">✅ Upload Commodity</button>
+  <p id="status"></p>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+  authDomain: "vster-69f85.firebaseapp.com",
+  projectId: "vster-69f85",
+  databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+  storageBucket: "vster-69f85.appspot.com",
+  messagingSenderId: "332765437206",
+  appId: "1:332765437206:web:4903595014ed6d0fc10fc5"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const storage = firebase.storage();
+
+function uploadCommodity() {
+  const name = document.getElementById("name").value.trim();
+  const category = document.getElementById("category").value;
+  const area = document.getElementById("area").value.trim();
+  const contact = document.getElementById("contact").value.trim();
+  const note = document.getElementById("note").value.trim();
+  const imageFile = document.getElementById("image").files[0];
+  const visibility = document.getElementById("visibility").value;
+  const targetWard = document.getElementById("targetWard").value.trim();
+  const targetCounty = document.getElementById("targetCounty").value.trim();
+  const targetCountry = document.getElementById("targetCountry").value.trim();
+  const status = document.getElementById("status");
+
+  if (!name || !area || !category || !contact || !imageFile) {
+    status.innerText = "❗ Fill all fields and select an image.";
+    return;
+  }
+
+  const postId = db.ref().child("commodities").push().key;
+  const storageRef = storage.ref("commodities/" + postId);
+
+  storageRef.put(imageFile)
+    .then(snapshot => snapshot.ref.getDownloadURL())
+    .then(imageUrl => {
+      return db.ref("commodities/" + postId).set({
+        name,
+        category,
+        area,
+        contact,
+        note,
+        image: imageUrl,
+        visibility,
+        targetWard,
+        targetCounty,
+        targetCountry,
+        createdAt: Date.now()
+      });
+    })
+    .then(() => {
+      status.innerText = "✅ Commodity uploaded!";
+      setTimeout(() => location.reload(), 2000);
+    })
+    .catch(error => {
+      status.innerText = "❌ Error: " + error.message;
+    });
+}
+
+function autofillLocation() {
+  if (!navigator.geolocation) return alert("Geolocation not supported.");
+  navigator.geolocation.getCurrentPosition(position => {
+    const lat = position.coords.latitude;
+    const lng = position.coords.longitude;
+
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`)
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("targetCountry").value = data.address.country || "";
+        document.getElementById("targetCounty").value = data.address.county || "";
+        document.getElementById("targetWard").value = data.address.suburb || data.address.village || data.address.town || "";
+      })
+      .catch(() => alert("Could not auto-detect location info"));
+  }, err => {
+    alert("Location error: " + err.message);
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Rider Ratings Summary - BodaBiz</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; padding: 15px; background: #f9fdfb; }
+    header { background: #0bb35f; color: white; padding: 15px; font-size: 1.3rem; font-weight: bold; }
+    .summary-card { background: white; padding: 12px; border-radius: 8px; margin: 12px 0; box-shadow: 0 1px 5px rgba(0,0,0,0.1); }
+    .stars { color: gold; font-weight: bold; }
+    a { text-decoration: none; color: #0a6845; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <header>BodaBiz – Rider Ratings Summary</header>
+  <div id="ratingsSummary">Loading...</div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+      authDomain: "vster-69f85.firebaseapp.com",
+      databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+      projectId: "vster-69f85",
+      storageBucket: "vster-69f85.appspot.com",
+      messagingSenderId: "332765437206",
+      appId: "1:332765437206:web:4903595014ed6d0fc10fc5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const summaryMap = {};
+
+    db.ref("deliveries").once("value", snap => {
+      snap.forEach(child => {
+        const d = child.val();
+        if (d.riderUID && d.feedback && d.status === "delivered") {
+          const uid = d.riderUID;
+          if (!summaryMap[uid]) {
+            summaryMap[uid] = {
+              name: d.riderName || "Unknown",
+              total: 0,
+              sum: 0,
+              uid: uid
+            };
+          }
+          summaryMap[uid].sum += d.feedback.rating;
+          summaryMap[uid].total += 1;
+        }
+      });
+      renderSummary(Object.values(summaryMap));
+    });
+
+    function renderSummary(list) {
+      const div = document.getElementById("ratingsSummary");
+      if (!list.length) {
+        div.innerHTML = "<p>No rider feedback yet.</p>";
+        return;
+      }
+      list.forEach(r => {
+        const avg = (r.sum / r.total).toFixed(1);
+        div.innerHTML += `
+          <div class="summary-card">
+            <a href="profile.html?uid=${r.uid}">${r.name}</a><br>
+            <span class="stars">⭐ ${avg} / 5</span> – ${r.total} review(s)
+          </div>
+        `;
+      });
+    }
+  </script>
+</body>
+</html>

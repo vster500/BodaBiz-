@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Settings - BodaBiz</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter&display=swap">
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #f1fdf5; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 20px auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+    h2 { color: #0bb35f; }
+    label { display: block; margin-top: 15px; font-weight: bold; }
+    input, textarea, button, select {
+      width: 100%; padding: 10px; margin-top: 5px;
+      border: 1px solid #ccc; border-radius: 6px; font-size: 1rem;
+    }
+    button { background: #0bb35f; color: white; font-weight: bold; cursor: pointer; }
+    #profilePicPreview { width: 100px; height: 100px; border-radius: 50%; object-fit: cover; margin-top: 10px; }
+    .logout { background: #e53935; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>⚙️ Account Settings</h2>
+
+    <label>Profile Picture</label>
+    <img id="profilePicPreview" src="" alt="Profile" />
+    <input type="file" id="profilePic" accept="image/*">
+
+    <label>Display Name</label>
+    <input type="text" id="displayName" placeholder="Your name" />
+
+    <label>Bio</label>
+    <textarea id="bio" placeholder="Tell us something about you..."></textarea>
+
+    <label>Email</label>
+    <input type="text" id="email" disabled />
+
+    <label>Badge</label>
+    <input type="text" id="badge" disabled />
+
+    <button onclick="saveProfile()">💾 Save Profile</button>
+
+    <h2>🔐 Change Password</h2>
+    <input type="password" id="newPassword" placeholder="New Password" />
+    <button onclick="changePassword()">Change Password</button>
+
+    <h2>💰 BodaCash Wallet</h2>
+    <p><strong>Current Balance:</strong> <span id="walletBalance">Loading...</span></p>
+    <button onclick="location.href='wallet.html'">View Wallet & Top-Up</button>
+
+    <button class="logout" onclick="logout()">🚪 Logout</button>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+      authDomain: "vster-69f85.firebaseapp.com",
+      databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+      projectId: "vster-69f85",
+      storageBucket: "vster-69f85.appspot.com",
+      messagingSenderId: "332765437206",
+      appId: "1:332765437206:web:4903595014ed6d0fc10fc5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const auth = firebase.auth();
+    const storage = firebase.storage();
+
+    let uid;
+
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        uid = user.uid;
+        loadProfile(uid);
+        loadWallet(uid);
+      } else {
+        alert("You must login first.");
+        window.location.href = "login.html";
+      }
+    });
+
+    function loadProfile(uid) {
+      db.ref("users/" + uid).once("value", snap => {
+        const data = snap.val();
+        if (data) {
+          document.getElementById("displayName").value = data.name || "";
+          document.getElementById("bio").value = data.bio || "";
+          document.getElementById("email").value = data.email || "";
+          document.getElementById("badge").value = data.badge || "";
+          if (data.photo) document.getElementById("profilePicPreview").src = data.photo;
+        }
+      });
+    }
+
+    document.getElementById("profilePic").addEventListener("change", function () {
+      const file = this.files[0];
+      if (!file) return;
+      const ref = storage.ref("profile_pics/" + uid);
+      ref.put(file).then(snapshot => {
+        snapshot.ref.getDownloadURL().then(url => {
+          document.getElementById("profilePicPreview").src = url;
+          db.ref("users/" + uid + "/photo").set(url);
+        });
+      });
+    });
+
+    function saveProfile() {
+      const name = document.getElementById("displayName").value;
+      const bio = document.getElementById("bio").value;
+      if (/[⚡⭐🔥💼🚀]/.test(name)) {
+        alert("Please avoid emojis in name to prevent badge misuse.");
+        return;
+      }
+      db.ref("users/" + uid).update({ name, bio });
+      alert("Profile updated!");
+    }
+
+    function changePassword() {
+      const newPass = document.getElementById("newPassword").value;
+      if (newPass.length < 6) return alert("Password too short.");
+      auth.currentUser.updatePassword(newPass).then(() => {
+        alert("Password changed.");
+      }).catch(err => {
+        alert("Error: " + err.message);
+      });
+    }
+
+    function loadWallet(uid) {
+      db.ref("wallets/" + uid + "/balance").once("value", snap => {
+        document.getElementById("walletBalance").innerText = snap.val() || "0 BodaCash";
+      });
+    }
+
+    function logout() {
+      auth.signOut().then(() => {
+        window.location.href = "login.html";
+      });
+    }
+  </script>
+</body>
+</html>

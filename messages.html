@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Messages - BodaBiz</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #f4fff4;
+    }
+    header {
+      background: #0bb35f;
+      padding: 15px;
+      color: white;
+      font-size: 1.3rem;
+      text-align: center;
+      font-weight: bold;
+    }
+    .chat-list {
+      padding: 15px;
+    }
+    .chat-card {
+      display: flex;
+      align-items: center;
+      background: white;
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      position: relative;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+    .chat-card:hover {
+      background: #f0fff0;
+    }
+    .chat-img {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-right: 10px;
+    }
+    .chat-info {
+      flex: 1;
+    }
+    .chat-name {
+      font-weight: bold;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+    }
+    .online-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: green;
+      margin-left: 6px;
+    }
+    .last-msg {
+      font-size: 0.9rem;
+      color: #444;
+      margin-top: 4px;
+    }
+    .badge {
+      background: red;
+      color: white;
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: 12px;
+      position: absolute;
+      right: 10px;
+      top: 10px;
+    }
+
+    /* Modal */
+    #miniProfileModal {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.3);
+      z-index: 1000;
+      width: 90%;
+      max-width: 400px;
+    }
+    #miniProfileModal img {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-bottom: 10px;
+    }
+    #overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.3);
+      z-index: 999;
+      display: none;
+    }
+    .btn {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 8px 12px;
+      background: #0bb35f;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+
+    /* Swipe on mobile (basic) */
+    @media (pointer: coarse) {
+      .chat-card:active {
+        transform: translateX(-60px);
+      }
+      .chat-card::after {
+        content: '🗑️';
+        position: absolute;
+        right: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: red;
+        font-size: 1.2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>Messages</header>
+  <div class="chat-list" id="chatList">Loading chats...</div>
+
+  <!-- Mini Profile Modal -->
+  <div id="overlay" onclick="closeMiniModal()"></div>
+  <div id="miniProfileModal">
+    <center>
+      <img id="miniPhoto" src="" />
+      <h3 id="miniName"></h3>
+      <p id="miniContact"></p>
+      <p id="miniBio"></p>
+      <a href="#" id="miniMsgBtn" class="btn">💬 Message</a>
+      <a href="#" id="miniProfileLink" class="btn">🔎 View Full Profile</a>
+    </center>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+      authDomain: "vster-69f85.firebaseapp.com",
+      databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+      projectId: "vster-69f85",
+      storageBucket: "vster-69f85.appspot.com",
+      messagingSenderId: "332765437206",
+      appId: "1:332765437206:web:4903595014ed6d0fc10fc5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const auth = firebase.auth();
+
+    let currentUID = "";
+
+    auth.onAuthStateChanged(user => {
+      if (!user) return location.href = "login.html";
+      currentUID = user.uid;
+      loadChats();
+    });
+
+    function loadChats() {
+      db.ref("chats/" + currentUID).once("value", snap => {
+        const data = snap.val();
+        const list = document.getElementById("chatList");
+        list.innerHTML = "";
+
+        if (!data) {
+          list.innerHTML = "<p>No chats found.</p>";
+          return;
+        }
+
+        const chatArray = Object.entries(data).map(([uid, info]) => ({
+          uid,
+          ...info
+        })).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+        chatArray.forEach(chat => {
+          db.ref("users/" + chat.uid + "/profile").once("value", profileSnap => {
+            const profile = profileSnap.val() || {};
+            const card = document.createElement("div");
+            card.className = "chat-card";
+            card.onclick = () => openMini(chat.uid);
+
+            const onlineRef = db.ref("status/" + chat.uid);
+            onlineRef.on("value", statusSnap => {
+              const isOnline = statusSnap.val() === true;
+              card.querySelector(".chat-name .dot")?.remove();
+              if (isOnline) {
+                const dot = document.createElement("span");
+                dot.className = "online-dot dot";
+                card.querySelector(".chat-name").appendChild(dot);
+              }
+            });
+
+            card.innerHTML = `
+              <img class="chat-img" src="${profile.photoURL || 'user.png'}" />
+              <div class="chat-info">
+                <div class="chat-name">${profile.name || "Unknown"}</div>
+                <div class="last-msg">${chat.lastMessage || "..."}</div>
+              </div>
+              ${chat.unread ? `<span class="badge">New</span>` : ""}
+            `;
+            list.appendChild(card);
+          });
+        });
+      });
+    }
+
+    function openMini(uid) {
+      db.ref("users/" + uid + "/profile").once("value", snap => {
+        const p = snap.val() || {};
+        document.getElementById("miniPhoto").src = p.photoURL || "user.png";
+        document.getElementById("miniName").textContent = p.name || "Unknown";
+        document.getElementById("miniContact").textContent = p.contact || "";
+        document.getElementById("miniBio").textContent = p.bio || "";
+        document.getElementById("miniMsgBtn").href = `chat.html?uid=${uid}`;
+        document.getElementById("miniProfileLink").href = `profile.html?uid=${uid}`;
+        document.getElementById("overlay").style.display = "block";
+        document.getElementById("miniProfileModal").style.display = "block";
+      });
+    }
+
+    function closeMiniModal() {
+      document.getElementById("overlay").style.display = "none";
+      document.getElementById("miniProfileModal").style.display = "none";
+    }
+  </script>
+</body>
+</html>

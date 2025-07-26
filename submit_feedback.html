@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Submit Delivery Feedback</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #fcfffc; padding: 15px; }
+    header { background: #0bb35f; color: white; padding: 15px; font-size: 1.3rem; font-weight: bold; }
+    label { display: block; margin-top: 10px; }
+    input, textarea, select { width: 100%; padding: 8px; margin-top: 4px; border-radius: 6px; border: 1px solid #ccc; }
+    button { margin-top: 15px; padding: 10px; background: #0bb35f; color: white; border: none; border-radius: 6px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <header>BodaBiz – Submit Feedback</header>
+  <form id="feedbackForm">
+    <label>Delivery ID (ask support if unsure):
+      <input type="text" id="deliveryId" required />
+    </label>
+    <label>Rating:
+      <select id="rating" required>
+        <option value="">Choose rating</option>
+        <option value="5">⭐ 5 - Excellent</option>
+        <option value="4">⭐ 4 - Good</option>
+        <option value="3">⭐ 3 - Fair</option>
+        <option value="2">⭐ 2 - Poor</option>
+        <option value="1">⭐ 1 - Bad</option>
+      </select>
+    </label>
+    <label>Comment:
+      <textarea id="comment" placeholder="Write your feedback..." rows="3"></textarea>
+    </label>
+    <button type="submit">Submit Feedback</button>
+  </form>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+      authDomain: "vster-69f85.firebaseapp.com",
+      databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+      projectId: "vster-69f85",
+      storageBucket: "vster-69f85.appspot.com",
+      messagingSenderId: "332765437206",
+      appId: "1:332765437206:web:4903595014ed6d0fc10fc5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    document.getElementById("feedbackForm").addEventListener("submit", e => {
+      e.preventDefault();
+      const id = document.getElementById("deliveryId").value.trim();
+      const rating = parseInt(document.getElementById("rating").value);
+      const comment = document.getElementById("comment").value;
+
+      const feedback = {
+        rating,
+        comment,
+        timestamp: Date.now()
+      };
+
+      db.ref("deliveries/" + id + "/feedback").set(feedback).then(() => {
+        alert("Feedback submitted!");
+        location.href = "feedback.html";
+      }).catch(err => {
+        alert("Error: " + err.message);
+      });
+    });
+  </script>
+</body>
+</html>

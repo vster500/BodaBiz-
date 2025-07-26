@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>My Delivery History - BodaBiz</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #f8fff8; margin: 0; padding: 15px; }
+    header { background: #0bb35f; color: white; padding: 15px; font-size: 1.3rem; font-weight: bold; }
+    .delivery-card { background: white; padding: 12px; margin: 12px 0; border-radius: 8px; box-shadow: 0 1px 5px rgba(0,0,0,0.1); }
+    .status { font-weight: bold; font-size: 0.85rem; }
+    .delivered { color: green; }
+    .pending { color: orange; }
+    .cancelled { color: red; }
+    .btn { padding: 6px 10px; margin-top: 5px; border: none; border-radius: 5px; cursor: pointer; }
+    .btn-cancel { background: #dc3545; color: white; }
+    .btn-submit { background: #0bb35f; color: white; margin-top: 8px; }
+    .rating-stars span { cursor: pointer; font-size: 1.2rem; }
+    textarea { width: 100%; padding: 8px; border-radius: 5px; margin-top: 5px; }
+    .back-link { display: block; margin-top: 10px; text-align: right; font-size: 0.95rem; color: #0bb35f; text-decoration: underline; }
+    .filter-bar { margin-top: 10px; margin-bottom: 15px; }
+  </style>
+</head>
+<body>
+  <header>BodaBiz – My Delivery History</header>
+  <a class="back-link" href="index.html">← Back to Home</a>
+
+  <div class="filter-bar">
+    <label for="filter">Filter by date:</label>
+    <select id="filter" onchange="loadDeliveryHistory()">
+      <option value="all">All</option>
+      <option value="today">Today</option>
+      <option value="month">This Month</option>
+    </select>
+  </div>
+
+  <div id="deliveryHistory">Loading...</div>
+  <button id="loadMore" style="display:none" class="btn" onclick="loadDeliveryHistory(true)">Load More</button>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+      authDomain: "vster-69f85.firebaseapp.com",
+      databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+      projectId: "vster-69f85",
+      storageBucket: "vster-69f85.appspot.com",
+      messagingSenderId: "332765437206",
+      appId: "1:332765437206:web:4903595014ed6d0fc10fc5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    let currentUser = null;
+    let allData = [], displayedCount = 0, pageSize = 5;
+
+    firebase.auth().onAuthStateChanged(user => {
+      if (!user) return (location.href = "login.html");
+      currentUser = user;
+      fetchAll();
+    });
+
+    function fetchAll() {
+      db.ref("deliveries").orderByChild("userUID").equalTo(currentUser.uid).once("value", snapshot => {
+        const list = [];
+        snapshot.forEach(child => {
+          const d = child.val();
+          d.id = child.key;
+          list.unshift(d);
+        });
+        allData = list;
+        displayedCount = 0;
+        loadDeliveryHistory();
+      });
+    }
+
+    function filterByDate(data, type) {
+      const now = new Date();
+      return data.filter(d => {
+        const date = new Date(d.timestamp);
+        if (type === "today") {
+          return date.toDateString() === now.toDateString();
+        }
+        if (type === "month") {
+          return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+        }
+        return true;
+      });
+    }
+
+    function loadDeliveryHistory(loadMore = false) {
+      const container = document.getElementById("deliveryHistory");
+      const filter = document.getElementById("filter").value;
+      const list = filterByDate(allData, filter);
+
+      if (!loadMore) {
+        container.innerHTML = "";
+        displayedCount = 0;
+      }
+
+      const slice = list.slice(displayedCount, displayedCount + pageSize);
+      displayedCount += slice.length;
+
+      slice.forEach(d => {
+        const card = document.createElement("div");
+        card.className = "delivery-card";
+        card.setAttribute("data-id", d.id);
+
+        const statusClass = d.status === "delivered" ? "delivered" : 
+                            d.status === "cancelled" ? "cancelled" : "pending";
+
+        card.innerHTML = `
+          <strong>Item:</strong> ${d.commodityId || "N/A"}<br>
+          <strong>Note:</strong> ${d.note || "-"}<br>
+          <strong>Area:</strong> ${d.area || "Unknown"}<br>
+          <strong>Destination:</strong> ${d.destination || "Not specified"}<br>
+          <strong>Status:</strong> <span class="status ${statusClass}">${d.status}</span><br>
+          ${d.riderUID ? `<strong>Rider:</strong> ${d.riderName || "Assigned"}<br>
+                         <strong>Contact:</strong> ${d.riderContact || "N/A"}` : `<em>Waiting for assignment</em>`}
+          <br><small>${new Date(d.timestamp).toLocaleString()}</small>
+        `;
+
+        if (d.status === "pending") {
+          const cancelBtn = document.createElement("button");
+          cancelBtn.className = "btn btn-cancel";
+          cancelBtn.innerText = "Cancel Request";
+          cancelBtn.onclick = () => cancelRequest(d.id);
+          card.appendChild(cancelBtn);
+        }
+
+        if (d.status === "delivered" && !d.feedback) {
+          const ratingSection = document.createElement("div");
+          ratingSection.innerHTML = `
+            <hr>
+            <label><strong>Rate Delivery:</strong></label>
+            <div class="rating-stars" data-stars="0">
+              ${[1, 2, 3, 4, 5].map(i => `<span data-star="${i}">☆</span>`).join('')}
+            </div>
+            <textarea placeholder="Leave a comment..." id="comment-${d.id}"></textarea>
+            <button class="btn btn-submit" onclick="submitFeedback('${d.id}', '${d.riderUID}')">Submit</button>
+          `;
+          card.appendChild(ratingSection);
+
+          setTimeout(() => {
+            const stars = card.querySelectorAll(".rating-stars span");
+            stars.forEach(star => {
+              star.onclick = () => {
+                const val = star.dataset.star;
+                stars.forEach(s => s.innerText = s.dataset.star <= val ? '★' : '☆');
+                card.querySelector(".rating-stars").setAttribute("data-stars", val);
+              };
+            });
+          }, 10);
+        }
+
+        container.appendChild(card);
+      });
+
+      document.getElementById("loadMore").style.display = displayedCount < list.length ? "block" : "none";
+
+      if (list.length === 0) {
+        container.innerHTML = "<p>No deliveries found for this filter.</p>";
+        document.getElementById("loadMore").style.display = "none";
+      }
+    }
+
+    function cancelRequest(id) {
+      if (confirm("Cancel this delivery request?")) {
+        db.ref("deliveries/" + id).update({ status: "cancelled" }).then(() => {
+          alert("Cancelled.");
+          fetchAll();
+        });
+      }
+    }
+
+    function submitFeedback(id, riderUID) {
+      const card = document.querySelector(`[data-id="${id}"]`);
+      const stars = card.querySelector(".rating-stars").getAttribute("data-stars");
+      const comment = document.getElementById(`comment-${id}`).value.trim();
+      const button = card.querySelector(".btn-submit");
+
+      if (parseInt(stars) === 0) return alert("Please rate before submitting.");
+      button.disabled = true;
+      button.innerText = "Submitting...";
+
+      const feedback = { rating: parseInt(stars), comment, timestamp: Date.now() };
+
+      db.ref("deliveries/" + id + "/feedback").set(feedback).then(() => {
+        // Update rider's profile rating (optional)
+        if (riderUID) {
+          const ref = db.ref("riders/" + riderUID + "/reviews").push();
+          ref.set({
+            ...feedback,
+            from: currentUser.uid,
+            deliveryId: id
+          });
+        }
+        alert("Feedback submitted!");
+        fetchAll();
+      });
+    }
+  </script>
+</body>
+</html>

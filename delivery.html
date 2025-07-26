@@ -1,0 +1,81 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Request Delivery - BodaBiz</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #f1fdf5; margin: 0; padding: 20px; }
+    h2 { color: #0bb35f; text-align: center; }
+    .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .rider-card { border: 1px solid #ccc; border-left: 5px solid #0bb35f; margin-bottom: 15px; padding: 12px; border-radius: 6px; background: #fdfdfd; }
+    .rider-card.inactive { border-left-color: gray; opacity: 0.7; }
+    .rider-card h4 { margin: 0; color: #0bb35f; }
+    .rider-card p { margin: 5px 0; font-size: 0.9rem; }
+    .rider-card button {
+      background: #0bb35f; color: white; border: none;
+      padding: 6px 12px; border-radius: 4px;
+      cursor: pointer;
+    }
+    .title-bar { font-weight: bold; font-size: 1.2rem; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <div class="title-bar">🚚 BodaBiz Delivery</div>
+  <div class="container">
+    <h2>Select a Rider for Delivery</h2>
+    <div id="riderList">Loading available riders...</div>
+  </div>  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+      authDomain: "vster-69f85.firebaseapp.com",
+      databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+      projectId: "vster-69f85"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const auth = firebase.auth();
+
+    const riderList = document.getElementById("riderList");
+
+    db.ref("riders").on("value", snap => {
+      riderList.innerHTML = "";
+      snap.forEach(child => {
+        const r = child.val();
+        const div = document.createElement("div");
+        div.className = "rider-card" + (r.active ? "" : " inactive");
+        div.innerHTML = `
+          <h4>🚴 ${r.nickname || "Unnamed"} (${r.type})</h4>
+          <p>📍 Stage: ${r.stage}</p>
+          <p>📞 <a href="tel:${r.contact}">${r.contact}</a></p>
+          <p>Status: <span style="color:${r.active ? 'green' : 'gray'}">${r.active ? 'Active' : 'Offline'}</span></p>
+          <button onclick="bookDelivery('${child.key}', '${r.nickname}', '${r.contact}')" ${r.active ? "" : "disabled"}>Request Delivery</button>
+        `;
+        riderList.appendChild(div);
+      });
+    });
+
+    function bookDelivery(riderId, name, contact) {
+      const confirmed = confirm(`Request delivery from ${name} (${contact})?`);
+      if (!confirmed) return;
+
+      auth.onAuthStateChanged(user => {
+        if (!user) return alert("Please login to book a delivery");
+        const uid = user.uid;
+        const booking = {
+          riderId,
+          riderName: name,
+          riderContact: contact,
+          userId: uid,
+          timestamp: Date.now(),
+          status: "Pending"
+        };
+
+        db.ref("delivery_requests").push(booking)
+          .then(() => alert("Delivery requested successfully. Rider will be notified."));
+      });
+    }
+  </script></body>
+</html>

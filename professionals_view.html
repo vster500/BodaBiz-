@@ -1,0 +1,126 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BodaBiz - Professionals</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; background: #f5fff7; }
+    header { background: #0bb35f; color: white; padding: 1rem; display: flex; justify-content: space-between; align-items: center; }
+    .logo { font-size: 1.4rem; font-weight: bold; }
+    .search { padding: 1rem; }
+    .search input { width: 95%; padding: 10px; border-radius: 6px; border: 1px solid #ccc; }
+    .container { padding: 1rem; }
+    .card { background: white; margin-bottom: 1rem; padding: 1rem; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.1); }
+    .card-header { display: flex; align-items: center; }
+    .profile-pic { width: 60px; height: 60px; border-radius: 50%; margin-right: 15px; object-fit: cover; }
+    .badge { font-size: 0.8rem; background: #e0ffe6; color: #0bb35f; padding: 4px 8px; border-radius: 6px; margin-left: 8px; }
+    .status { font-weight: bold; font-size: 0.85rem; }
+    .online { color: green; }
+    .offline { color: gray; }
+    .actions { margin-top: 10px; }
+    .actions button { background: #0bb35f; color: white; border: none; padding: 8px 12px; margin-right: 10px; border-radius: 5px; cursor: pointer; }
+    .no-result { text-align: center; padding: 20px; color: gray; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">BodaBiz</div>
+    <a href="index.html" style="color:white; text-decoration:none;">🏠</a>
+  </header>  <div class="search">
+    <input type="text" id="searchBox" placeholder="Search profession or location..." oninput="filterProfessionals()">
+  </div>  <div class="container" id="professionalList">
+    <p class="no-result">Loading professionals...</p>
+  </div>  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+      authDomain: "vster-69f85.firebaseapp.com",
+      databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+      projectId: "vster-69f85",
+      storageBucket: "vster-69f85.appspot.com",
+      messagingSenderId: "332765437206",
+      appId: "1:332765437206:web:4903595014ed6d0fc10fc5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const auth = firebase.auth();
+
+    let professionals = [];
+    let currentUser = null;
+
+    auth.onAuthStateChanged(user => currentUser = user);
+
+    db.ref("users").once("value", snap => {
+      professionals = [];
+      snap.forEach(userSnap => {
+        const userId = userSnap.key;
+        const userData = userSnap.val();
+
+        if (userData.professionals) {
+          Object.entries(userData.professionals).forEach(([id, prof]) => {
+            professionals.push({
+              ...prof,
+              uid: userId,
+              name: userData.name || "Unnamed",
+              photo: userData.profile_photo || "",
+              online: userData.online || false
+            });
+          });
+        }
+      });
+      renderProfessionals(professionals);
+    });
+
+    function renderProfessionals(list) {
+      const container = document.getElementById("professionalList");
+      container.innerHTML = "";
+      if (list.length === 0) {
+        container.innerHTML = `<p class='no-result'>No professionals found.</p>`;
+        return;
+      }
+
+      list.forEach(p => {
+        const div = document.createElement("div");
+        div.className = "card";
+        div.innerHTML = `
+          <div class="card-header">
+            <img src="${p.photo}" class="profile-pic">
+            <div>
+              <strong>${p.name}</strong>
+              <span class="badge">${p.profession || "Unknown"}</span>
+              <div class="status ${p.online ? 'online' : 'offline'}">${p.online ? '🟢 Online' : '⚪ Offline'}</div>
+              <div style="font-size: 0.85rem;">📍 ${p.ward || ''}, ${p.county || ''}</div>
+            </div>
+          </div>
+          <div class="actions">
+            <button onclick="window.location.href='profile.html?uid=${p.uid}'">👁 View</button>
+            <button onclick="contactPro('${p.contact}')">📞 Contact</button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function contactPro(phone) {
+      if (!currentUser) {
+        alert("Login required to contact professionals.");
+        window.location.href = "login.html";
+        return;
+      }
+      window.location.href = `tel:${phone}`;
+    }
+
+    function filterProfessionals() {
+      const term = document.getElementById("searchBox").value.toLowerCase();
+      const results = professionals.filter(p =>
+        (p.profession && p.profession.toLowerCase().includes(term)) ||
+        (p.ward && p.ward.toLowerCase().includes(term)) ||
+        (p.county && p.county.toLowerCase().includes(term)) ||
+        (p.name && p.name.toLowerCase().includes(term))
+      );
+      renderProfessionals(results);
+    }
+  </script></body>
+</html>

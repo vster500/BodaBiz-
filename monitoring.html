@@ -1,0 +1,212 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Active Users Map - BodaBiz</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <style>
+    body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #f0fff6; color: #222; }
+    header { background: #0bb35f; color: white; padding: 1rem; text-align: center; font-size: 1.2rem; font-weight: bold; }
+    #map { height: 250px; }
+    .controls { padding: 10px; background: #e7f9ed; display: flex; flex-wrap: wrap; gap: 10px; }
+    .controls select, .controls input[type="search"] { padding: 6px; border-radius: 5px; border: 1px solid #ccc; flex: 1; }
+    .controls label { font-size: 0.9rem; display: flex; align-items: center; gap: 5px; }
+    .stats { padding: 10px; font-size: 0.9rem; color: #0b6845; background: #f6fff9; border-bottom: 1px solid #ccebdc; display: flex; justify-content: space-around; }
+    .user-list { padding: 10px; }
+    .user-card { background: white; padding: 12px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 1px 5px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 12px; border-left: 5px solid transparent; }
+    .user-card.active { border-left-color: #0bb35f; background: #f0fef7; }
+    .profile-pic { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
+    .user-info { flex: 1; }
+    .user-info p { margin: 2px 0; font-size: 0.9rem; }
+    .badge { background: #0bb35f; color: white; font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; margin-left: 5px; }
+    .admin-action { background: #fff; padding: 10px; margin: 10px; border: 1px dashed #0bb35f; border-radius: 6px; }
+    .admin-action input, .admin-action button { margin-top: 5px; padding: 8px; width: 100%; }
+    .admin-action button { background: #0bb35f; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <header>📍 Nearby Users Map - BodaBiz</header>
+  <div id="map"></div>  <div class="stats" id="areaStats">
+    <span>Total Users: 0</span>
+    <span>Active Now: 0</span>
+    <span>Riders Online: 0</span>
+    <span>Admins: 0</span>
+  </div>  <div class="controls">
+    <select id="filterWard"></select>
+    <select id="filterCounty"></select>
+    <select id="filterCountry"></select>
+    <label><input type="checkbox" id="onlyActive" /> Show Only Active</label>
+    <input type="search" id="searchBox" placeholder="Search name, profession, etc" />
+  </div>  <div class="admin-action" id="pushPanel" style="display:none">
+    <h4>📢 Send Area Notification</h4>
+    <input type="text" id="notifText" placeholder="Write a message..." />
+    <button onclick="sendNotification()">Send Notification</button>
+  </div>  <div class="user-list" id="userList">Loading users...</div>  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+      authDomain: "vster-69f85.firebaseapp.com",
+      databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+      projectId: "vster-69f85"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const auth = firebase.auth();
+
+    const map = L.map('map').setView([0.0236, 37.9062], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    const userList = document.getElementById("userList");
+    const filterWard = document.getElementById("filterWard");
+    const filterCounty = document.getElementById("filterCounty");
+    const filterCountry = document.getElementById("filterCountry");
+    const onlyActive = document.getElementById("onlyActive");
+    const searchBox = document.getElementById("searchBox");
+    const stats = document.getElementById("areaStats");
+
+    let allUsers = [], mapMarkers = [];
+
+    function updateStats(users) {
+      const total = users.length;
+      const active = users.filter(u => u.active).length;
+      const riders = users.filter(u => u.badge && u.badge.toLowerCase().includes("rider")).length;
+      const admins = users.filter(u => u.badge && u.badge.toLowerCase().includes("admin")).length;
+      stats.innerHTML = `
+        <span>Total Users: ${total}</span>
+        <span>Active Now: ${active}</span>
+        <span>Riders Online: ${riders}</span>
+        <span>Admins: ${admins}</span>`;
+    }
+
+    db.ref("users").on("value", snap => {
+      allUsers = [];
+      mapMarkers.forEach(marker => map.removeLayer(marker));
+      mapMarkers = [];
+      userList.innerHTML = "";
+
+      const areas = { wards: new Set(), counties: new Set(), countries: new Set() };
+
+      snap.forEach(child => {
+        const user = child.val();
+        if (user.profile && user.profile.location) {
+          const u = user.profile;
+          const loc = (u.location || '').split(',');
+          const userData = {
+            name: u.name || 'Unnamed',
+            contact: u.contact || '',
+            badge: u.badge || '',
+            verified: u.verified || false,
+            ward: u.ward || loc[2] || '',
+            county: u.county || loc[1] || '',
+            country: u.country || loc[0] || '',
+            photo: u.profile_photo || '',
+            lat: u.lat || null,
+            lng: u.lng || null,
+            active: u.active || false
+          };
+          allUsers.push(userData);
+          areas.wards.add(userData.ward);
+          areas.counties.add(userData.county);
+          areas.countries.add(userData.country);
+
+          if (userData.lat && userData.lng) {
+            const marker = L.marker([userData.lat, userData.lng]).addTo(map)
+              .bindPopup(`<b>${userData.name}</b><br>${userData.contact}`);
+            mapMarkers.push(marker);
+          }
+        }
+      });
+
+      filterWard.innerHTML = `<option value="">All Wards</option>` + [...areas.wards].map(w => `<option>${w}</option>`).join('');
+      filterCounty.innerHTML = `<option value="">All Counties</option>` + [...areas.counties].map(c => `<option>${c}</option>`).join('');
+      filterCountry.innerHTML = `<option value="">All Countries</option>` + [...areas.countries].map(cn => `<option>${cn}</option>`).join('');
+
+      updateStats(allUsers);
+      renderUserList(allUsers);
+    });
+
+    function renderUserList(users) {
+      const wardVal = filterWard.value;
+      const countyVal = filterCounty.value;
+      const countryVal = filterCountry.value;
+      const activeOnly = onlyActive.checked;
+      const term = searchBox.value.toLowerCase();
+      const filtered = users.filter(u => {
+        return (!wardVal || u.ward === wardVal) &&
+               (!countyVal || u.county === countyVal) &&
+               (!countryVal || u.country === countryVal) &&
+               (!activeOnly || u.active) &&
+               (u.name.toLowerCase().includes(term) || u.contact.toLowerCase().includes(term));
+      });
+
+      userList.innerHTML = filtered.length ? "" : "<p>No users found</p>";
+      filtered.forEach(u => {
+        const div = document.createElement("div");
+        div.className = `user-card ${u.active ? 'active' : ''}`;
+        div.innerHTML = `
+  <img src="${u.photo}" class="profile-pic" />
+  <div class="user-info">
+    <p><strong>${u.name}</strong> ${u.badge ? `<span class="badge">${u.badge}</span>` : ''}</p>
+    <p>${u.ward || ''}, ${u.county || ''}</p>
+    <p><a href="tel:${u.contact}">${u.contact}</a></p>
+    <button onclick="trackPhone('${u.contact}')" 
+      style="margin-top:6px;background:#0b9444;color:white;padding:6px 10px;border:none;border-radius:5px;font-size:0.85rem;">
+      📱 Track Phone
+    </button>
+  </div>`;
+        userList.appendChild(div);
+      });
+    }
+
+    [filterWard, filterCounty, filterCountry, onlyActive, searchBox].forEach(e => e.addEventListener("input", () => renderUserList(allUsers)));
+
+    // Show push panel only for admin
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        db.ref("users/" + user.uid + "/role").once("value", snap => {
+          if (snap.val() === "admin") {
+            document.getElementById("pushPanel").style.display = "block";
+          }
+        });
+      }
+    });
+
+    function sendNotification() {
+      const msg = document.getElementById("notifText").value.trim();
+      if (!msg) return alert("Enter a message");
+      db.ref("notifications").push({
+        text: msg,
+        tag: "Area Alert",
+        timestamp: Date.now()
+      });
+      alert("Notification sent.");
+      document.getElementById("notifText").value = "";
+    }
+    function trackPhone(contact) {
+  alert("Tracking " + contact);
+  // Later you can use:
+  // window.location.href = 'track_phone.html?contact=' + encodeURIComponent(contact);
+}
+  </script>
+  <!-- Floating + Button -->
+<a href="business_registration.html" style="
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: #0bb35f;
+  color: white;
+  font-size: 28px;
+  border-radius: 50%;
+  width: 55px;
+  height: 55px;
+  text-align: center;
+  line-height: 55px;
+  text-decoration: none;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  z-index: 1000;
+">+</a>
+  </body>
+</html>

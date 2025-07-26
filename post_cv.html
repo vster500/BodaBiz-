@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Upload CV - BodaBiz</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #f1fdf5; padding: 20px; }
+    .box { background: white; border-radius: 10px; padding: 20px; max-width: 520px; margin: auto; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    h2 { color: #0bb35f; text-align: center; }
+    input, textarea, button, select {
+      width: 100%; margin-top: 10px; padding: 10px; border-radius: 6px; border: 1px solid #ccc;
+    }
+    button { background: #0bb35f; color: white; font-weight: bold; border: none; cursor: pointer; }
+    .note { font-size: 14px; color: #777; text-align: center; margin-top: 15px; }
+    .wallet { text-align: center; font-weight: bold; margin-top: 10px; }
+    #noticeBox { color: red; font-size: 14px; margin-top: 10px; display: none; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>Upload Your CV</h2>
+    <input type="text" id="cvName" placeholder="Full Name" />
+    <input type="text" id="cvProfession" placeholder="Profession (e.g. Plumber, Teacher)" />
+    <input type="number" id="cvAge" placeholder="Age" />
+    <input type="text" id="cvArea" placeholder="Area (County/Ward)" />
+    <input type="text" id="cvContact" placeholder="Phone or WhatsApp" />
+    
+    <label>Profile Photo (Optional)</label>
+    <input type="file" id="cvPhoto" accept="image/*" />
+    
+    <label>Attach CV File (.pdf / .doc)</label>
+    <input type="file" id="cvFile" accept=".pdf,.doc,.docx" />
+    
+    <label>Visibility:</label>
+    <select id="visibility">
+      <option value="ward">Ward (Free)</option>
+      <option value="county">County (KES 50)</option>
+      <option value="country">Country (KES 100)</option>
+      <option value="global">Global (KES 150)</option>
+    </select>
+
+    <div id="noticeBox"></div>
+    <div class="wallet">Wallet: <span id="walletBalance">Loading...</span> BodaCash</div>
+    <button onclick="uploadPhotoThenCV()">Upload CV</button>
+    <div class="note">💡 Ensure you have enough BodaCash. Top up via M-PESA 0769883456 or PayPal: levisbonventure@gmail.com.</div>
+  </div>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+    authDomain: "vster-69f85.firebaseapp.com",
+    databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+    projectId: "vster-69f85",
+    storageBucket: "vster-69f85.appspot.com",
+    messagingSenderId: "332765437206",
+    appId: "1:332765437206:web:4903595014ed6d0fc10fc5"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const auth = firebase.auth();
+  const storage = firebase.storage();
+
+  let userID = null;
+  let balance = 0;
+  let userBadge = "none";
+
+  const badgeRanks = { none: 0, silver: 1, gold: 2, diamond: 3 };
+  const boostRanks = { ward: 0, county: 1, country: 2, global: 3 };
+  const boostCost = { ward: 0, county: 50, country: 100, global: 150 };
+
+  auth.onAuthStateChanged(user => {
+    if (!user) return (location.href = "login.html");
+    userID = user.uid;
+
+    db.ref("wallets/" + userID).on("value", snap => {
+      balance = snap.val() || 0;
+      document.getElementById("walletBalance").textContent = balance;
+    });
+
+    db.ref("users/" + userID + "/badge").once("value", snap => {
+      userBadge = snap.val() || "none";
+    });
+  });
+
+  function uploadPhotoThenCV() {
+    const selectedVis = document.getElementById("visibility").value;
+    const selectedCost = boostCost[selectedVis];
+    const allowedRank = badgeRanks[userBadge] || 0;
+    const requiredRank = boostRanks[selectedVis];
+
+    if (requiredRank > allowedRank) {
+      document.getElementById("noticeBox").style.display = "block";
+      document.getElementById("noticeBox").innerText = `⚠️ Your current badge allows up to ${badgeRankToName(allowedRank)} visibility only. Upgrade to access ${selectedVis} level.`;
+      return;
+    }
+
+    if (balance < selectedCost) {
+      return alert(`❌ Insufficient BodaCash for ${selectedVis} visibility (Required: ${selectedCost})`);
+    }
+
+    const photo = document.getElementById("cvPhoto").files[0];
+    if (photo) {
+      const photoPath = "cv_photos/" + userID + "_" + Date.now();
+      storage.ref(photoPath).put(photo).then(pSnap => {
+        pSnap.ref.getDownloadURL().then(photoURL => {
+          uploadCV(photoURL, selectedVis, selectedCost);
+        });
+      });
+    } else {
+      uploadCV("", selectedVis, selectedCost);
+    }
+  }
+
+  function uploadCV(photoURL, visibility, cost) {
+    const name = document.getElementById("cvName").value.trim();
+    const profession = document.getElementById("cvProfession").value.trim();
+    const age = parseInt(document.getElementById("cvAge").value.trim());
+    const area = document.getElementById("cvArea").value.trim();
+    const contact = document.getElementById("cvContact").value.trim();
+    const file = document.getElementById("cvFile").files[0];
+
+    if (!name || !profession || !age || !area || !contact || !file) {
+      return alert("Please complete all fields and upload your CV.");
+    }
+
+    const filePath = "cvs/" + userID + "_" + Date.now() + "_" + file.name;
+    storage.ref(filePath).put(file).then(snapshot => {
+      snapshot.ref.getDownloadURL().then(fileURL => {
+        const cvData = {
+          name, profession, age, area, contact,
+          fileURL, photoURL, timestamp: Date.now(),
+          uid: userID, visibility, badge: userBadge
+        };
+
+        db.ref("cv_posts").push(cvData);
+        db.ref("wallets/" + userID).set(balance - cost);
+        db.ref("wallet_logs/" + userID).push({
+          amount: -cost,
+          reason: `CV Upload - ${visibility}`,
+          timestamp: Date.now()
+        });
+
+        alert("✅ CV uploaded successfully!");
+        window.location.href = "cvs-view.html";
+      });
+    });
+  }
+
+  function badgeRankToName(rank) {
+    return Object.keys(badgeRanks).find(key => badgeRanks[key] === rank);
+  }
+</script>
+</body>
+</html>

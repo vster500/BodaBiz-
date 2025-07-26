@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Delivery Manager - BodaBiz</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; padding: 10px; background: #f9fffa; }
+    header { background: #0bb35f; color: white; padding: 15px; font-size: 1.3rem; font-weight: bold; }
+    .filter-bar { display: flex; gap: 10px; margin: 10px 0; flex-wrap: wrap; }
+    .filter-bar select { padding: 10px; border-radius: 6px; border: 1px solid #ccc; }
+    .card { background: white; border-radius: 8px; padding: 12px; margin: 10px 0; box-shadow: 0 0 5px rgba(0,0,0,0.1); }
+    .status { font-size: 0.85rem; font-weight: bold; }
+    .btn { padding: 6px 10px; border: none; border-radius: 5px; margin-right: 5px; cursor: pointer; }
+    .delivered { background: #0bb35f; color: white; }
+    .cancel { background: #dc3545; color: white; }
+  </style>
+</head>
+<body>
+  <header>BodaBiz – Delivery Manager</header>
+
+  <div class="filter-bar">
+    <select id="statusFilter" onchange="renderDeliveries()">
+      <option value="">All Statuses</option>
+      <option>assigned</option>
+      <option>in_progress</option>
+      <option>delivered</option>
+      <option>cancelled</option>
+    </select>
+  </div>
+
+  <div id="deliveryList">Loading...</div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+      authDomain: "vster-69f85.firebaseapp.com",
+      databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+      projectId: "vster-69f85",
+      storageBucket: "vster-69f85.appspot.com",
+      messagingSenderId: "332765437206",
+      appId: "1:332765437206:web:4903595014ed6d0fc10fc5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let currentUser = null;
+    let userArea = "";
+    let allDeliveries = [];
+
+    firebase.auth().onAuthStateChanged(user => {
+      if (user) {
+        currentUser = user;
+        db.ref("users/" + user.uid + "/profile/area").once("value", snap => {
+          userArea = snap.val() || "";
+          loadDeliveries();
+        });
+      } else {
+        alert("Login required");
+        location.href = "login.html";
+      }
+    });
+
+    function loadDeliveries() {
+      db.ref("deliveries").on("value", snap => {
+        allDeliveries = [];
+        snap.forEach(child => {
+          const d = child.val();
+          d.id = child.key;
+          allDeliveries.push(d);
+        });
+        renderDeliveries();
+      });
+    }
+
+    function renderDeliveries() {
+      const statusFilter = document.getElementById("statusFilter").value;
+      const deliveryList = document.getElementById("deliveryList");
+      deliveryList.innerHTML = "";
+
+      const filtered = allDeliveries.filter(d => {
+        return (!statusFilter || d.status === statusFilter);
+      });
+
+      if (!filtered.length) {
+        deliveryList.innerHTML = "<p>No deliveries found</p>";
+        return;
+      }
+
+      filtered.forEach(d => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <strong>Rider: ${d.riderUID}</strong><br>
+          Item: ${d.commodityId}<br>
+          Note: ${d.note || "N/A"}<br>
+          Status: <span class="status">${d.status}</span><br>
+          Time: ${new Date(d.timestamp).toLocaleString()}<br>
+          <button class="btn delivered" onclick="updateStatus('${d.id}', 'delivered')">Mark Delivered</button>
+          <button class="btn cancel" onclick="updateStatus('${d.id}', 'cancelled')">Cancel</button>
+        `;
+        deliveryList.appendChild(card);
+      });
+    }
+
+    function updateStatus(id, newStatus) {
+      db.ref("deliveries/" + id).update({ status: newStatus }).then(() => {
+        alert("Updated to " + newStatus);
+      });
+    }
+  </script>
+</body>
+</html>

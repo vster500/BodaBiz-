@@ -1,0 +1,142 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Post My Business - BodaBiz</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #f0fff4; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    h2 { color: #0bb35f; text-align: center; margin-bottom: 20px; }
+    label { display: block; margin-top: 12px; font-weight: 600; }
+    input, textarea, select, button { width: 100%; padding: 10px; margin-top: 5px; border-radius: 6px; border: 1px solid #ccc; font-size: 1rem; }
+    button { background: #0bb35f; color: white; border: none; cursor: pointer; font-weight: bold; margin-top: 20px; }
+    .top-bar { background: #0bb35f; color: white; padding: 15px; font-size: 1.2rem; font-weight: bold; border-radius: 8px; margin-bottom: 15px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="top-bar">📤 Post My Business</div>
+  <div class="container">
+    <h2>Create Business Post</h2><label>Business Name</label>
+<input type="text" id="title" placeholder="e.g. Kalonzo Shop" />
+
+<label>Description</label>
+<textarea id="desc" rows="3" placeholder="Describe your products or services"></textarea>
+
+<label>Contact Number</label>
+<input type="text" id="contact" placeholder="e.g. 07XXXXXXXX" />
+
+<label>Upload Image</label>
+<input type="file" id="image" accept="image/*" />
+
+<label>Tag</label>
+<select id="tag">
+  <option value="offer">🔥 Offer</option>
+  <option value="update">📢 Update</option>
+  <option value="info">ℹ️ Info</option>
+</select>
+
+<button onclick="submitPost()">✅ Submit Post</button>
+<p id="status"></p>
+
+  </div>  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+      authDomain: "vster-69f85.firebaseapp.com",
+      databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+      projectId: "vster-69f85",
+      storageBucket: "vster-69f85.appspot.com",
+      messagingSenderId: "332765437206",
+      appId: "1:332765437206:web:4903595014ed6d0fc10fc5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+    const storage = firebase.storage();
+
+    function submitPost() {
+      const title = document.getElementById('title').value.trim();
+      const desc = document.getElementById('desc').value.trim();
+      const contact = document.getElementById('contact').value.trim();
+      const imageFile = document.getElementById('image').files[0];
+      const tag = document.getElementById('tag').value;
+      const status = document.getElementById('status');
+
+      if (!title || !desc || !contact || !imageFile) {
+        status.innerText = "Please fill in all fields and upload an image.";
+        return;
+      }
+
+      auth.onAuthStateChanged(user => {
+        if (!user) return location.href = 'login.html';
+
+        const uid = user.uid;
+        const postId = db.ref().child('users').child(uid).child('businesses').push().key;
+        const storageRef = storage.ref('business_images/' + uid + '/' + postId);
+
+        storageRef.put(imageFile).then(snapshot => snapshot.ref.getDownloadURL()).then(imageUrl => {
+          navigator.geolocation.getCurrentPosition(pos => {
+            const lat = pos.coords.latitude;
+            const lon = pos.coords.longitude;
+
+            fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`)
+              .then(res => res.json())
+              .then(locationData => {
+                const country = locationData.address.country || "";
+                const county = locationData.address.county || "";
+                const ward = locationData.address.suburb || locationData.address.village || locationData.address.town || "";
+
+                const post = {
+                  name: title,
+                  description: desc,
+                  contact,
+                  tag,
+                  photo: imageUrl,
+                  lat,
+                  lon,
+                  country,
+                  county,
+                  ward,
+                  createdAt: Date.now(),
+                  boosted_until: "",
+                  badge: "user"
+                };
+
+                // Save to user profile
+                db.ref('users/' + uid + '/businesses/' + postId).set(post);
+
+                // Save to public feed
+                db.ref('global_businesses/' + postId).set({ ...post, uid });
+
+                status.innerText = "✅ Post created and shared with your area!";
+                setTimeout(() => location.href = 'index.html', 2000);
+              });
+          }, err => {
+            status.innerText = "❌ Please enable location access to continue.";
+          });
+        }).catch(e => status.innerText = "Error uploading image: " + e.message);
+      });
+    }
+  </script>
+  <!-- Floating Home Button -->
+<a href="feeds.html" style="
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: #0bb35f;
+  color: white;
+  font-size: 28px;
+  border-radius: 50%;
+  width: 55px;
+  height: 55px;
+  text-align: center;
+  line-height: 55px;
+  text-decoration: none;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  z-index: 1000;
+">🏠</a>
+</body>
+</html>

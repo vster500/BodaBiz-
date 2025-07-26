@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Settings - BodaBiz</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #e9f5ec;
+    }
+    .header {
+      background-color: #087f23;
+      color: white;
+      padding: 15px;
+      font-size: 20px;
+      font-weight: bold;
+    }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      padding: 20px;
+    }
+    h2 {
+      color: #087f23;
+      margin-bottom: 10px;
+    }
+    .toggle-group {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.05);
+    }
+    .toggle {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 12px 0;
+    }
+    .toggle label {
+      font-size: 16px;
+      color: #333;
+    }
+    .toggle input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      background-color: #087f23;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 15px;
+    }
+    .saved {
+      color: #087f23;
+      text-align: center;
+      margin-top: 15px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">BodaBiz</div>
+  <div class="container">
+    <h2>🔔 Notification Preferences</h2>
+    <div class="toggle-group">
+      <div class="toggle">
+        <label for="general_updates">📢 General Updates</label>
+        <input type="checkbox" id="general_updates">
+      </div>
+      <div class="toggle">
+        <label for="promotions">🛍️ Promotions & Offers</label>
+        <input type="checkbox" id="promotions">
+      </div>
+      <div class="toggle">
+        <label for="job_alerts">💼 Job & CV Alerts</label>
+        <input type="checkbox" id="job_alerts">
+      </div>
+      <div class="toggle">
+        <label for="emergency_alerts">🚨 Emergency Alerts</label>
+        <input type="checkbox" id="emergency_alerts">
+      </div>
+      <div class="toggle">
+        <label for="area_only">📍 Only from My Area</label>
+        <input type="checkbox" id="area_only">
+      </div>
+    </div>
+    <button onclick="savePreferences()">Save Preferences</button>
+    <div class="saved" id="savedMsg">✅ Preferences saved successfully</div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+      authDomain: "vster-69f85.firebaseapp.com",
+      databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+      projectId: "vster-69f85",
+      storageBucket: "vster-69f85.appspot.com",
+      messagingSenderId: "332765437206",
+      appId: "1:332765437206:web:4903595014ed6d0fc10fc5"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    auth.onAuthStateChanged(user => {
+      if (!user) return;
+      const uid = user.uid;
+      const ref = db.ref("users/" + uid + "/notification_preferences");
+
+      ref.once("value").then(snapshot => {
+        const prefs = snapshot.val() || {};
+        document.getElementById("general_updates").checked = prefs.general_updates || false;
+        document.getElementById("promotions").checked = prefs.promotions || false;
+        document.getElementById("job_alerts").checked = prefs.job_alerts || false;
+        document.getElementById("emergency_alerts").checked = prefs.emergency_alerts || false;
+        document.getElementById("area_only").checked = prefs.area_only || false;
+      });
+    });
+
+    function savePreferences() {
+      const user = firebase.auth().currentUser;
+      if (!user) return alert("Please log in first.");
+      const uid = user.uid;
+
+      const prefs = {
+        general_updates: document.getElementById("general_updates").checked,
+        promotions: document.getElementById("promotions").checked,
+        job_alerts: document.getElementById("job_alerts").checked,
+        emergency_alerts: document.getElementById("emergency_alerts").checked,
+        area_only: document.getElementById("area_only").checked
+      };
+
+      db.ref("users/" + uid + "/notification_preferences").set(prefs)
+        .then(() => {
+          document.getElementById("savedMsg").style.display = "block";
+          setTimeout(() => {
+            document.getElementById("savedMsg").style.display = "none";
+          }, 3000);
+        });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,69 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>🎬 Movie Details - BodaBiz</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #f0faf5; padding: 20px; }
+    .container { max-width: 850px; margin: auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    h1 { color: #0bb35f; }
+    img { width: 100%; border-radius: 12px; }
+    iframe { width: 100%; height: 300px; border-radius: 10px; margin: 15px 0; }
+    .desc, .meta, .rating, .price, .comments, .download { margin-bottom: 15px; }
+    .price { font-weight: bold; color: #b32929; }
+    .btn {
+      background: #0bb35f; color: white; padding: 10px 15px;
+      border: none; border-radius: 6px; font-size: 1rem; cursor: pointer;
+      margin: 5px 5px 5px 0; display: inline-block; text-decoration: none;
+    }
+    .review-box { background: #f7fdf9; padding: 10px; border-radius: 8px; margin-bottom: 10px; }
+    .comment-input { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1 id="title">Loading...</h1>
+    <img id="poster" src="" alt="Movie Poster" />
+    <iframe id="trailer" allowfullscreen></iframe><div class="desc" id="description"></div>
+<div class="meta">
+  <p><strong>Type:</strong> <span id="type"></span> &nbsp; | &nbsp; <strong>Verified:</strong> <span id="verified">❌</span></p>
+</div>
+
+<div class="price" id="priceInfo"></div>
+<div id="paySection"></div>
+<div id="downloadSection" class="download" style="display:none;"></div>
+
+<p><strong>Views:</strong> <span id="viewCount">0</span> | 
+   <strong>Likes:</strong> <span id="likeCount">0</span> |
+   <strong>Avg Rating:</strong> <span id="avgRating">0.0</span></p>
+
+<button class="btn" onclick="likeMovie()">❤️ Like</button>
+<button class="btn" onclick="saveToWatchlist()">🔖 Save</button>
+<button class="btn" onclick="shareMovie()">📤 Share</button>
+<button class="btn" onclick="reportMovie()">🚨 Report</button>
+
+<div class="rating">
+  <h3>⭐ Rate this Movie</h3>
+  <select id="ratingSelect">
+    <option value="">Select rating</option>
+    <option value="1">⭐</option>
+    <option value="2">⭐⭐</option>
+    <option value="3">⭐⭐⭐</option>
+    <option value="4">⭐⭐⭐⭐</option>
+    <option value="5">⭐⭐⭐⭐⭐</option>
+  </select>
+  <button class="btn" onclick="submitRating()">Submit</button>
+</div>
+
+<div class="comments">
+  <h3>💬 Comments</h3>
+  <input type="text" id="commentInput" class="comment-input" placeholder="Write a comment...">
+  <button class="btn" onclick="submitComment()">Post</button>
+  <div id="commentList"></div>
+</div>
+
+  </div>  <script src="movie-script.js"></script></body>
+</html>

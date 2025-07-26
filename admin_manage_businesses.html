@@ -1,0 +1,108 @@
+<!-- admin_business_list.html -->
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - Manage Businesses</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #f5fff7; padding: 1rem; }
+    h2 { text-align: center; color: #0bb35f; margin-top: 60px; }
+    .biz-item {
+      background: white; margin: 10px 0; padding: 15px;
+      border-radius: 8px; box-shadow: 0 1px 6px rgba(0,0,0,0.1);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .biz-info { max-width: 70%; }
+    .biz-info h4 { margin: 0 0 5px; color: #0bb35f; }
+    .biz-info p { margin: 0; font-size: 0.9rem; color: #444; }
+    .biz-actions button {
+      background: #0bb35f; border: none; color: white;
+      padding: 5px 10px; border-radius: 5px; margin-left: 5px;
+      cursor: pointer; font-size: 0.85rem;
+    }
+    .biz-actions button.delete { background: red; }
+
+    /* Back button style */
+    .back-btn {
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      background: #0bb35f;
+      color: white;
+      padding: 8px 14px;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: bold;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      z-index: 999;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Back to Monitoring Button -->
+  <a href="monitoring.html" class="back-btn">⬅ Back</a>
+
+  <h2>📋 All Businesses</h2>
+  <div id="businessList">Loading...</div>  
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+      authDomain: "vster-69f85.firebaseapp.com",
+      databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+      projectId: "vster-69f85",
+      storageBucket: "vster-69f85.appspot.com",
+      messagingSenderId: "332765437206",
+      appId: "1:332765437206:web:4903595014ed6d0fc10fc5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const businessListDiv = document.getElementById("businessList");
+
+    db.ref("users").once("value").then(snap => {
+      businessListDiv.innerHTML = "";
+      snap.forEach(userSnap => {
+        const userId = userSnap.key;
+        const user = userSnap.val();
+        if (user.businesses) {
+          Object.entries(user.businesses).forEach(([bizId, biz]) => {
+            const div = document.createElement("div");
+            div.className = "biz-item";
+            div.innerHTML = `
+              <div class="biz-info">
+                <h4>${biz.name || "No Name"}</h4>
+                <p>${biz.category || "Unknown"} | ${biz.ward || biz.county || ""}</p>
+                <p>Contact: ${biz.contact || "-"}</p>
+              </div>
+              <div class="biz-actions">
+                <button onclick="editBusiness('${userId}', '${bizId}')">Edit</button>
+                <button class="delete" onclick="deleteBusiness('${userId}', '${bizId}')">Delete</button>
+              </div>
+            `;
+            businessListDiv.appendChild(div);
+          });
+        }
+      });
+      if (!businessListDiv.innerHTML) businessListDiv.innerHTML = "<p>No businesses found.</p>";
+    });
+
+    function editBusiness(uid, id) {
+      window.location.href = `admin_add_business.html?uid=${uid}&id=${id}`;
+    }
+
+    function deleteBusiness(uid, id) {
+      if (confirm("Are you sure you want to delete this business?")) {
+        db.ref(`users/${uid}/businesses/${id}`).remove().then(() => {
+          alert("Business deleted successfully");
+          location.reload();
+        });
+      }
+    }
+  </script>
+</body>
+</html>

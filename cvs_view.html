@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>CV Viewer - BodaBiz</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f5fff7;
+      margin: 0;
+    }
+    header {
+      background: #0bb35f;
+      color: white;
+      padding: 1rem;
+      font-size: 1.2rem;
+      font-weight: bold;
+    }
+    h2 {
+      color: #0bb35f;
+      text-align: center;
+      margin-top: 10px;
+    }
+    .controls {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 10px;
+    }
+    .controls input, .controls select {
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 15px;
+      padding: 20px;
+    }
+    .cv-card {
+      background: white;
+      border-radius: 10px;
+      padding: 15px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      cursor: pointer;
+    }
+    .cv-card img {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-bottom: 10px;
+    }
+    .cv-card h4 {
+      margin: 5px 0;
+      color: #0bb35f;
+    }
+    .cv-card p {
+      margin: 3px 0;
+      font-size: 14px;
+    }
+    .cv-card button {
+      margin-top: 10px;
+      background: #0bb35f;
+      border: none;
+      color: white;
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .badge {
+      background: linear-gradient(to right, gold, orange);
+      color: white;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      display: inline-block;
+      margin-bottom: 6px;
+    }
+  </style>
+</head>
+<body>
+  <header>BodaBiz</header>
+  <h2>📄 CVs Near You</h2>
+
+  <div class="controls">
+    <input type="text" id="searchInput" placeholder="Search name, profession, or area..." oninput="filterCVs()" />
+    <select id="ageFilter" onchange="filterCVs()">
+      <option value="">All Ages</option>
+      <option value="under25">Under 25</option>
+      <option value="25to35">25 - 35</option>
+      <option value="35plus">35+</option>
+    </select>
+    <select id="sortFilter" onchange="filterCVs()">
+      <option value="">Sort by</option>
+      <option value="recent">Most Recent</option>
+      <option value="boosted">Boosted First</option>
+    </select>
+  </div>
+
+  <div class="grid" id="cvGrid">Loading...</div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+      authDomain: "vster-69f85.firebaseapp.com",
+      databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+      projectId: "vster-69f85",
+      storageBucket: "vster-69f85.appspot.com",
+      messagingSenderId: "332765437206",
+      appId: "1:332765437206:web:4903595014ed6d0fc10fc5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const auth = firebase.auth();
+
+    let allCVs = [];
+    let currentUser = null;
+
+    auth.onAuthStateChanged(user => {
+      currentUser = user;
+      loadCVs();
+    });
+
+    function loadCVs() {
+      db.ref("cv_posts").once("value", snapshot => {
+        allCVs = [];
+        const now = Date.now();
+        const expiry = 90 * 24 * 60 * 60 * 1000; // 3 months
+
+        snapshot.forEach(child => {
+          const cv = child.val();
+          if (!cv.timestamp || (now - cv.timestamp > expiry)) return;
+          cv.id = child.key;
+          allCVs.push(cv);
+        });
+
+        // Default sort: boosted first
+        allCVs.sort((a, b) => (b.boost === true) - (a.boost === true));
+        filterCVs();
+      });
+    }
+
+    function renderCVs(cvs) {
+      const grid = document.getElementById("cvGrid");
+      grid.innerHTML = cvs.length === 0 ? "<p style='padding:20px;'>No CVs found.</p>" : "";
+
+      cvs.forEach(cv => {
+        const div = document.createElement("div");
+        div.className = "cv-card";
+        div.innerHTML = `
+          <img src="${cv.photoURL || 'https://via.placeholder.com/80'}" alt="Profile">
+          <span class="badge">${cv.boost ? '🚀 Boosted' : (cv.badge || 'Basic')}</span>
+          <h4>${cv.name}</h4>
+          <p><strong>Profession:</strong> ${cv.profession}</p>
+          <p><strong>Age:</strong> ${cv.age}</p>
+          <p><strong>Area:</strong> ${cv.area}</p>
+          <p><strong>Posted:</strong> ${new Date(cv.timestamp).toLocaleDateString()}</p>
+          <p><strong>Contact:</strong> ${currentUser ? `<a href="tel:${cv.contact}">${cv.contact}</a>` : '🔒 Login to view'}</p>
+          <button onclick="window.open('${cv.fileURL}', '_blank')">📥 Download CV</button>
+        `;
+        grid.appendChild(div);
+      });
+    }
+
+    function filterCVs() {
+      const search = document.getElementById("searchInput").value.toLowerCase();
+      const ageFilter = document.getElementById("ageFilter").value;
+      const sortFilter = document.getElementById("sortFilter").value;
+
+      let filtered = allCVs.filter(cv => {
+        let match = (!cv.name || cv.name.toLowerCase().includes(search)) ||
+                    (!cv.profession || cv.profession.toLowerCase().includes(search)) ||
+                    (!cv.area || cv.area.toLowerCase().includes(search));
+
+        const age = parseInt(cv.age);
+        if (ageFilter === "under25") match = match && age < 25;
+        else if (ageFilter === "25to35") match = match && age >= 25 && age <= 35;
+        else if (ageFilter === "35plus") match = match && age > 35;
+
+        return match;
+      });
+
+      if (sortFilter === "recent") {
+        filtered.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      } else if (sortFilter === "boosted") {
+        filtered.sort((a, b) => (b.boost === true) - (a.boost === true));
+      }
+
+      renderCVs(filtered);
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Delivery Feedback - BodaBiz</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #f8fdf8; margin: 0; padding: 15px; }
+    header { background: #0bb35f; color: white; padding: 15px; font-size: 1.3rem; font-weight: bold; }
+    .feedback-card { background: white; border-radius: 8px; padding: 12px; margin: 12px 0; box-shadow: 0 1px 5px rgba(0,0,0,0.1); }
+    .stars { color: #f1c40f; font-size: 1.1rem; margin-bottom: 4px; }
+    .area { font-size: 0.85rem; color: #555; }
+    .rider a { color: #0a583f; font-weight: bold; text-decoration: none; }
+    .item { font-weight: bold; }
+    .time { font-size: 0.75rem; color: #777; }
+  </style>
+</head>
+<body>
+  <header>BodaBiz – Public Delivery Feedback</header>
+  <div id="feedbackList">Loading feedback...</div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+      authDomain: "vster-69f85.firebaseapp.com",
+      databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+      projectId: "vster-69f85",
+      storageBucket: "vster-69f85.appspot.com",
+      messagingSenderId: "332765437206",
+      appId: "1:332765437206:web:4903595014ed6d0fc10fc5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    function loadFeedback() {
+      db.ref("deliveries").once("value", snapshot => {
+        const feedbacks = [];
+        snapshot.forEach(child => {
+          const d = child.val();
+          if (d.feedback && d.status === "delivered") {
+            feedbacks.unshift({
+              stars: d.feedback.rating,
+              comment: d.feedback.comment,
+              item: d.commodityId || "Item",
+              rider: d.riderName || "Unknown Rider",
+              riderUID: d.riderUID || "",
+              area: d.area || "Unknown",
+              time: d.feedback.timestamp || d.timestamp || Date.now()
+            });
+          }
+        });
+        renderFeedback(feedbacks);
+      });
+    }
+
+    function renderFeedback(list) {
+      const container = document.getElementById("feedbackList");
+      container.innerHTML = "";
+
+      if (list.length === 0) {
+        container.innerHTML = "<p>No feedback submitted yet.</p>";
+        return;
+      }
+
+      list.forEach(f => {
+        const stars = "★".repeat(f.stars) + "☆".repeat(5 - f.stars);
+        const riderLink = f.riderUID ? `<a href="profile.html?uid=${f.riderUID}">${f.rider}</a>` : f.rider;
+
+        const div = document.createElement("div");
+        div.className = "feedback-card";
+        div.innerHTML = `
+          <div class="stars">${stars}</div>
+          <div class="item">Item: ${f.item}</div>
+          <div class="rider">Rider: ${riderLink}</div>
+          <div class="area">Area: ${f.area}</div>
+          <p>${f.comment || "No comment"}</p>
+          <div class="time">${new Date(f.time).toLocaleString()}</div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    loadFeedback();
+  </script>
+</body>
+</html>

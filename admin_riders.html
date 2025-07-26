@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>BodaBiz - Rider Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; padding: 20px; background: #f9fefb; }
+    h1, h3 { color: #0bb35f; }
+    input, select, button {
+      padding: 10px; width: 100%; margin: 8px 0;
+      border: 1px solid #ccc; border-radius: 6px;
+    }
+    button { background: #0bb35f; color: white; font-weight: bold; cursor: pointer; }
+    .card { border:1px solid #ddd; padding:10px; border-radius:8px; margin:10px 0; background:#fff; }
+  </style>
+</head>
+<body>
+  <h1>BodaBiz 🛵 Rider Admin</h1>
+
+  <h3 id="riderFormTitle">Add Rider</h3>
+  <input id="riderNickname" placeholder="Rider Nickname" />
+  <input id="riderStage" placeholder="Stage/Area" />
+  <input id="riderContact" placeholder="Contact (WhatsApp)" />
+  <input id="riderID" placeholder="ID Number (optional)" />
+  <select id="riderType">
+    <option>BodaBoda</option>
+    <option>Bicycle</option>
+    <option>Pushcart</option>
+    <option>Tuktuk</option>
+    <option>Uber</option>
+    <option>Pickup</option>
+    <option>Shuttle</option>
+    <option>Lorry</option>
+    <option>Bus</option>
+    <option>Trailer</option>
+    <option>Ship</option>
+  </select>
+
+  <label>📍 Manual Location (latitude,longitude)</label>
+  <input id="riderLocation" placeholder="e.g. -1.2921,36.8219" />
+  <button onclick="autoPinLocation()">📍 Auto Pin GPS Location</button>
+
+  <button onclick="addRider()">✅ Save Rider</button>
+
+  <h3>📋 Registered Riders</h3>
+  <div id="riderList">Loading...</div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+      authDomain: "vster-69f85.firebaseapp.com",
+      databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+      projectId: "vster-69f85",
+      storageBucket: "vster-69f85.appspot.com",
+      messagingSenderId: "332765437206",
+      appId: "1:332765437206:web:4903595014ed6d0fc10fc5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const riderList = document.getElementById("riderList");
+    let editingRider = null;
+
+    function loadRiders() {
+      db.ref("riders").on("value", snap => {
+        riderList.innerHTML = "";
+        snap.forEach(child => {
+          const rider = child.val();
+          const key = child.key;
+
+          const div = document.createElement("div");
+          div.className = "card";
+          div.innerHTML = `
+            <strong>🚴 ${rider.nickname}</strong> (${rider.type})<br>
+            📍 Stage: ${rider.stage} | <span style="color:${rider.active ? 'green' : 'gray'}">${rider.active ? 'Active' : 'Offline'}</span><br>
+            🗺 Location: ${rider.location || 'N/A'}<br>
+            📞 ${rider.contact}<br>
+            🆔 ${rider.id || 'N/A'}<br><br>
+            <button onclick="editRider('${key}')">✏️ Edit</button>
+            <button onclick="deleteRider('${key}')" style="background:#e74c3c;margin-left:8px;">🗑 Delete</button>
+          `;
+          riderList.appendChild(div);
+        });
+      });
+    }
+
+    function addRider() {
+      const nickname = document.getElementById("riderNickname").value;
+      const stage = document.getElementById("riderStage").value;
+      const contact = document.getElementById("riderContact").value;
+      const id = document.getElementById("riderID").value;
+      const type = document.getElementById("riderType").value;
+      const location = document.getElementById("riderLocation").value;
+
+      const riderData = {
+        nickname, stage, contact, id, type, location,
+        active: true,
+        lastUpdated: new Date().toISOString()
+      };
+
+      if (editingRider) {
+        db.ref("riders/" + editingRider).update(riderData).then(() => {
+          alert("✅ Rider updated");
+          editingRider = null;
+          document.getElementById("riderFormTitle").textContent = "Add Rider";
+        });
+      } else {
+        db.ref("riders").push(riderData).then(() => alert("✅ Rider added"));
+      }
+
+      document.getElementById("riderNickname").value = "";
+      document.getElementById("riderStage").value = "";
+      document.getElementById("riderContact").value = "";
+      document.getElementById("riderID").value = "";
+      document.getElementById("riderLocation").value = "";
+    }
+
+    function editRider(id) {
+      db.ref("riders/" + id).once("value", snap => {
+        const rider = snap.val();
+        document.getElementById("riderNickname").value = rider.nickname;
+        document.getElementById("riderStage").value = rider.stage;
+        document.getElementById("riderContact").value = rider.contact;
+        document.getElementById("riderID").value = rider.id || "";
+        document.getElementById("riderType").value = rider.type;
+        document.getElementById("riderLocation").value = rider.location || "";
+        document.getElementById("riderFormTitle").textContent = "Edit Rider";
+        editingRider = id;
+      });
+    }
+
+    function deleteRider(id) {
+      if (confirm("Are you sure you want to delete this rider?")) {
+        db.ref("riders/" + id).remove().then(() => alert("🗑 Rider deleted"));
+      }
+    }
+
+    function autoPinLocation() {
+      if (!navigator.geolocation) {
+        alert("Geolocation not supported.");
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(pos => {
+        const { latitude, longitude } = pos.coords;
+        document.getElementById("riderLocation").value = `${latitude},${longitude}`;
+      }, err => {
+        alert("Could not get location: " + err.message);
+      });
+    }
+
+    loadRiders();
+  </script>
+</body>
+</html>

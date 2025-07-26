@@ -1,0 +1,226 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>📘 Notes - BodaBiz</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #f5fff7; margin: 0; }
+    header {
+      background: #0bb35f;
+      color: white;
+      padding: 1rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .logo { font-size: 1.3rem; font-weight: bold; }
+    .home-link a { color: white; text-decoration: none; font-size: 1.2rem; }
+    .container {
+      max-width: 800px;
+      margin: 20px auto;
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    h1 { color: #0bb35f; margin-bottom: 10px; }
+    img { max-width: 100%; border-radius: 10px; margin-bottom: 15px; }
+    .desc, .price, .wallet { font-size: 1rem; margin-bottom: 10px; }
+    .price { color: #b32929; font-weight: bold; }
+    .wallet { color: #087f23; font-weight: bold; }
+    .btn {
+      background: #0bb35f; color: white; padding: 10px 15px; border: none;
+      border-radius: 6px; font-size: 1rem; cursor: pointer; margin-top: 10px;
+      display: inline-block; text-decoration: none;
+    }
+    .btn:disabled { background: #ccc; cursor: not-allowed; }
+    .pdf-link {
+      margin-top: 20px; background: #eefdf1; padding: 15px;
+      border-radius: 10px; word-break: break-word; text-align: center;
+      display: none;
+    }
+    .comments, .leaderboard, .bookmarks { margin-top: 20px; }
+    textarea { width: 100%; padding: 10px; margin-top: 10px; border-radius: 6px; }
+    .note-comment { background: #f9f9f9; padding: 8px; margin-top: 5px; border-radius: 5px; }
+  </style>
+</head>
+<body>
+<header>
+  <div class="logo">BodaBiz</div>
+  <div class="home-link"><a href="index.html">🏠</a></div>
+</header>
+<div class="container">
+  <div id="walletDisplay" class="wallet"></div>
+  <h1 id="title">Loading...</h1>
+  <img id="cover" src="" alt="Notes Cover" style="display:none;" />
+  <p class="desc" id="description"></p>
+  <p class="desc"><strong>Subject:</strong> <span id="subject"></span></p>
+  <p class="price" id="priceInfo"></p>
+  <div id="paySection"></div>
+  <div id="fileSection" class="pdf-link">
+    <a id="fileLink" class="btn" href="#" target="_blank">📅 Download Notes</a>
+  </div>  <!-- Bookmark Button --><button id="bookmarkBtn" class="btn">🔖 Save to Bookmarks</button>
+
+  <!-- Comments Section -->  <div class="comments">
+    <h3>Comments</h3>
+    <textarea id="commentInput" placeholder="Write your comment..."></textarea>
+    <button class="btn" onclick="addComment()">💬 Post Comment</button>
+    <div id="commentList"></div>
+  </div>
+</div><!-- Leaderboard Section --><div class="container leaderboard">
+  <h3>🏆 Top Notes This Week</h3>
+  <ul id="leaderboardList"></ul>
+</div><!-- My Purchases Section --><div class="container bookmarks">
+  <h3>💼 My Purchased Notes</h3>
+  <ul id="myNotesList"></ul>
+</div><script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+    authDomain: "vster-69f85.firebaseapp.com",
+    databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+    projectId: "vster-69f85",
+    storageBucket: "vster-69f85.appspot.com",
+    messagingSenderId: "332765437206",
+    appId: "1:332765437206:web:4903595014ed6d0fc10fc5"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const auth = firebase.auth();
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const noteId = urlParams.get("id");
+  let currentUser;
+
+  auth.onAuthStateChanged(user => {
+    if (user) {
+      currentUser = user;
+      showWalletBalance();
+      loadNote();
+      loadComments();
+      loadLeaderboard();
+      loadMyNotes();
+    } else {
+      alert("Please log in to view this note.");
+      location.href = "auth.html";
+    }
+  });
+
+  function showWalletBalance() {
+    db.ref("users/" + currentUser.uid + "/wallet").once("value", snap => {
+      const balance = snap.val() || 0;
+      document.getElementById("walletDisplay").textContent = `💰 Wallet: ${balance} BodaCash`;
+    });
+  }
+
+  function loadNote() {
+    db.ref("notes/" + noteId).once("value", snap => {
+      const data = snap.val();
+      if (!data) return alert("Note not found");
+
+      document.getElementById("title").textContent = data.title;
+      document.getElementById("description").textContent = data.description;
+      document.getElementById("subject").textContent = data.subject;
+      document.getElementById("bookmarkBtn").onclick = () => bookmarkNote(noteId, data);
+
+      if (data.image) {
+        document.getElementById("cover").src = data.image;
+        document.getElementById("cover").style.display = "block";
+      }
+
+      if (data.locked) {
+        db.ref("users/" + currentUser.uid + "/notePurchases/" + noteId).once("value", paid => {
+          if (paid.exists()) {
+            showDownload(data.fileLink);
+          } else {
+            document.getElementById("priceInfo").textContent = `This note costs ${data.price} BodaCash.`;
+            const btn = document.createElement("button");
+            btn.className = "btn";
+            btn.textContent = "Pay to Download";
+            btn.onclick = () => payForNote(data);
+            document.getElementById("paySection").appendChild(btn);
+          }
+        });
+      } else {
+        document.getElementById("priceInfo").textContent = `🔓 Free Note`;
+        showDownload(data.fileLink);
+      }
+    });
+  }
+
+  function showDownload(link) {
+    document.getElementById("fileLink").href = link;
+    document.getElementById("fileSection").style.display = "block";
+  }
+
+  function payForNote(data) {
+    const userRef = db.ref("users/" + currentUser.uid);
+    userRef.once("value", snap => {
+      const wallet = snap.val().wallet || 0;
+      if (wallet >= data.price) {
+        userRef.update({ wallet: wallet - data.price });
+        db.ref("users/" + currentUser.uid + "/notePurchases/" + noteId).set(true);
+        alert("Payment successful!");
+        location.reload();
+      } else {
+        alert("Insufficient BodaCash.");
+      }
+    });
+  }
+
+  function addComment() {
+    const comment = document.getElementById("commentInput").value;
+    if (!comment) return;
+    const ref = db.ref("notesComments/" + noteId).push();
+    ref.set({ user: currentUser.email, text: comment, time: Date.now() });
+    document.getElementById("commentInput").value = "";
+    loadComments();
+  }
+
+  function loadComments() {
+    const container = document.getElementById("commentList");
+    container.innerHTML = "";
+    db.ref("notesComments/" + noteId).once("value", snap => {
+      snap.forEach(child => {
+        const data = child.val();
+        const div = document.createElement("div");
+        div.className = "note-comment";
+        div.textContent = `${data.user}: ${data.text}`;
+        container.appendChild(div);
+      });
+    });
+  }
+
+  function bookmarkNote(id, data) {
+    db.ref("users/" + currentUser.uid + "/bookmarkedNotes/" + id).set({
+      title: data.title,
+      time: Date.now()
+    });
+    alert("Note bookmarked.");
+  }
+
+  function loadLeaderboard() {
+    db.ref("notes").orderByChild("views").limitToLast(5).once("value", snap => {
+      const list = document.getElementById("leaderboardList");
+      snap.forEach(child => {
+        const li = document.createElement("li");
+        li.textContent = `${child.val().title}`;
+        list.prepend(li);
+      });
+    });
+  }
+
+  function loadMyNotes() {
+    db.ref("users/" + currentUser.uid + "/notePurchases").once("value", snap => {
+      const container = document.getElementById("myNotesList");
+      snap.forEach(child => {
+        const li = document.createElement("li");
+        li.textContent = `Note ID: ${child.key}`;
+        container.appendChild(li);
+      });
+    });
+  }
+</script></body>
+</html>

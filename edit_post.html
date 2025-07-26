@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Post - BodaBiz</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background: #f2f2f2;
+      padding: 20px;
+    }
+    .form-container {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 600px;
+      margin: auto;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+    h2 {
+      text-align: center;
+      color: #0bb35f;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      background: #0bb35f;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    button:hover {
+      background: #099a4e;
+    }
+    #previewImg {
+      width: 100%;
+      max-height: 250px;
+      object-fit: cover;
+      margin-top: 10px;
+    }
+    .meta {
+      text-align: center;
+      font-size: 0.9rem;
+      color: #555;
+    }
+    #deleteBtn {
+      background: #e53935;
+    }
+    #deleteBtn:hover {
+      background: #c62828;
+    }
+  </style>
+</head>
+<body>
+  <div class="form-container">
+    <h2>✏️ Edit Your Post</h2>
+    <div id="badgeArea" class="meta"></div>
+    <div id="timeStamp" class="meta"></div>
+    <form id="editForm">
+      <label>Description</label>
+      <textarea id="description" rows="4"></textarea>
+
+      <label>Replace Image (optional)</label>
+      <input type="file" id="image" accept="image/*" />
+      <img id="previewImg" src="" alt="Current Image" />
+
+      <button type="submit" id="saveBtn">💾 Save Changes</button>
+      <button type="button" id="deleteBtn">🗑️ Delete Post</button>
+    </form>
+    <p id="statusMsg" style="text-align:center; margin-top:10px;"></p>
+  </div>
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+      authDomain: "vster-69f85.firebaseapp.com",
+      databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+      projectId: "vster-69f85",
+      storageBucket: "vster-69f85.appspot.com",
+      messagingSenderId: "332765437206",
+      appId: "1:332765437206:web:4903595014ed6d0fc10fc5"
+    };
+    firebase.initializeApp(firebaseConfig);
+
+    const auth = firebase.auth();
+    const db = firebase.database();
+    const storage = firebase.storage();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const postId = urlParams.get("id");
+
+    const form = document.getElementById("editForm");
+    const descInput = document.getElementById("description");
+    const imgInput = document.getElementById("image");
+    const previewImg = document.getElementById("previewImg");
+    const statusMsg = document.getElementById("statusMsg");
+    const timeStamp = document.getElementById("timeStamp");
+    const badgeArea = document.getElementById("badgeArea");
+    const deleteBtn = document.getElementById("deleteBtn");
+    const saveBtn = document.getElementById("saveBtn");
+
+    let currentUser = null;
+    let oldImageUrl = "";
+    let postTime = 0;
+
+    auth.onAuthStateChanged(user => {
+      if (!user) return location.href = "login.html";
+      currentUser = user;
+      loadPost();
+    });
+
+    function loadPost() {
+      db.ref("posts/" + currentUser.uid + "/" + postId).once("value").then(snapshot => {
+        const post = snapshot.val();
+        if (!post) return alert("Post not found.");
+
+        descInput.value = post.description || "";
+        if (post.imageUrl) {
+          previewImg.src = post.imageUrl;
+          oldImageUrl = post.imageUrl;
+        }
+
+        if (post.timestamp) {
+          postTime = post.timestamp;
+          const postedDate = new Date(post.timestamp);
+          timeStamp.textContent = "📅 Posted on: " + postedDate.toLocaleString();
+          const now = Date.now();
+          const timeDiff = (now - post.timestamp) / (1000 * 60); // in minutes
+          if (timeDiff > 60) {
+            descInput.disabled = true;
+            imgInput.disabled = true;
+            saveBtn.disabled = true;
+            statusMsg.textContent = "⏰ Editing disabled (post is over 1 hour old).";
+            statusMsg.style.color = "red";
+          }
+        }
+
+        db.ref("users/" + currentUser.uid + "/profile/badge").once("value", snap => {
+          const badge = snap.val();
+          if (badge) {
+            badgeArea.textContent = "🏅 Your Badge: " + badge;
+          }
+        });
+      });
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const desc = descInput.value.trim();
+      const newImage = imgInput.files[0];
+      if (!desc) return alert("Please enter a description.");
+      statusMsg.textContent = "Updating...";
+
+      let imageUrl = oldImageUrl;
+      if (newImage) {
+        const fileName = `${Date.now()}_${newImage.name}`;
+        const ref = storage.ref("posts/" + currentUser.uid + "/" + fileName);
+        await ref.put(newImage);
+        imageUrl = await ref.getDownloadURL();
+      }
+
+      const updates = {
+        description: desc,
+        imageUrl,
+        editedAt: Date.now()
+      };
+
+      await db.ref("posts/" + currentUser.uid + "/" + postId).update(updates);
+      statusMsg.textContent = "✅ Post updated successfully!";
+      statusMsg.style.color = "green";
+    });
+
+    deleteBtn.addEventListener("click", async () => {
+      if (confirm("Are you sure you want to delete this post?")) {
+        await db.ref("posts/" + currentUser.uid + "/" + postId).remove();
+        alert("✅ Post deleted.");
+        window.location.href = "my_posts.html";
+      }
+    });
+  </script>
+</body>
+</html>

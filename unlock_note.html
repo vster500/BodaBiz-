@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Unlock Note - BodaBiz</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #f0fff4; padding: 20px; }
+    .container { max-width: 600px; margin: auto; background: white; border-radius: 10px; padding: 20px; box-shadow: 0 0 8px rgba(0,0,0,0.1); }
+    h2 { color: #087f23; }
+    .info { margin-bottom: 20px; }
+    .button { padding: 12px; border: none; border-radius: 6px; width: 100%; font-weight: bold; font-size: 16px; cursor: pointer; }
+    .pay { background: #087f23; color: white; }
+    .unlock { background: #0bb35f; color: white; }
+    .disabled { background: #ccc; cursor: not-allowed; }
+    .message { text-align: center; margin-top: 10px; color: red; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>📘 Unlock Note</h2>
+    <div class="info">
+      <strong>Title:</strong> <span id="title">Loading...</span><br>
+      <strong>Description:</strong> <span id="desc">Loading...</span><br>
+      <strong>Price:</strong> <span id="price">KES 0</span><br>
+      <strong>Your Wallet:</strong> <span id="wallet">KES 0</span>
+    </div>
+
+    <div id="unlockSection">
+      <button id="payBtn" class="button pay" onclick="confirmPayment()">💰 Unlock Now</button>
+      <div id="message" class="message"></div>
+    </div>
+
+    <div id="contentSection" style="display:none;">
+      <h3>📄 Your Note:</h3>
+      <div id="contentLink"></div>
+    </div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+      authDomain: "vster-69f85.firebaseapp.com",
+      databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+      projectId: "vster-69f85",
+      storageBucket: "vster-69f85.appspot.com",
+      messagingSenderId: "332765437206",
+      appId: "1:332765437206:web:4903595014ed6d0fc10fc5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    let uid, noteId, noteData, wallet = 0;
+
+    // Get note ID from query string
+    const params = new URLSearchParams(window.location.search);
+    noteId = params.get("id");
+
+    auth.onAuthStateChanged(user => {
+      if (!user) return location.href = "login.html";
+      uid = user.uid;
+      loadUserWallet();
+      loadNote();
+    });
+
+    function loadUserWallet() {
+      db.ref("users/" + uid + "/profile/wallet").once("value").then(snap => {
+        wallet = snap.val() || 0;
+        document.getElementById("wallet").textContent = "KES " + wallet;
+      });
+    }
+
+    function loadNote() {
+      db.ref("content/notes/" + noteId).once("value").then(snap => {
+        noteData = snap.val();
+        if (!noteData) return alert("❌ Note not found");
+
+        document.getElementById("title").textContent = noteData.title || "Untitled";
+        document.getElementById("desc").textContent = noteData.desc || "";
+        document.getElementById("price").textContent = noteData.access === "paid" ? `KES ${noteData.price}` : "Free";
+
+        // If free note, show immediately
+        if (noteData.access === "free") return showContent();
+
+        // Check if already unlocked
+        db.ref("note_unlocks/" + uid + "/" + noteId).once("value").then(unlockSnap => {
+          if (unlockSnap.exists()) {
+            showContent();
+          }
+        });
+      });
+    }
+
+    function confirmPayment() {
+      const price = parseInt(noteData.price || 0);
+      if (wallet < price) {
+        document.getElementById("message").textContent = "❌ Insufficient BodaCash.";
+        return;
+      }
+
+      if (confirm(`Are you sure you want to pay KES ${price} to unlock this note?`)) {
+        db.ref("users/" + uid + "/profile/wallet").set(wallet - price);
+        db.ref("note_unlocks/" + uid + "/" + noteId).set({
+          unlocked_at: Date.now(),
+          price: price
+        }).then(() => {
+          document.getElementById("message").textContent = "";
+          showContent();
+        });
+      }
+    }
+
+    function showContent() {
+      document.getElementById("unlockSection").style.display = "none";
+      document.getElementById("contentSection").style.display = "block";
+
+      document.getElementById("contentLink").innerHTML = `
+        <a href="${noteData.download}" target="_blank">📥 Download Note</a>`;
+    }
+  </script>
+</body>
+</html>

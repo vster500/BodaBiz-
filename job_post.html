@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Post a Job - BodaBiz</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js"></script>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; background: #f1fdf5; margin: 0; padding: 20px; }
+    .container { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    h2 { color: #0bb35f; text-align: center; }
+    input, textarea, button {
+      width: 100%; padding: 10px; margin-top: 10px; border-radius: 6px; border: 1px solid #ccc;
+    }
+    button { background: #0bb35f; color: white; border: none; font-weight: bold; cursor: pointer; }
+    .logo { font-weight: bold; color: #0bb35f; text-align: left; margin-bottom: 10px; }
+    .note { font-size: 0.85rem; color: #777; margin-top: 15px; }
+  </style>
+</head>
+<body>
+  <div class="logo">BodaBiz</div>
+  <div class="container">
+    <h2>Post a Job</h2>
+    <input type="text" id="jobTitle" placeholder="Job Title" />
+    <textarea id="jobDesc" placeholder="Job Description" rows="4"></textarea>
+    <input type="text" id="jobArea" placeholder="Area (e.g. Kibra, Nairobi)" />
+    <button onclick="autoFillLocation()">📍 Use My Location</button>
+    <input type="text" id="jobContact" placeholder="Phone or WhatsApp" />
+    <input type="text" id="jobCategory" placeholder="Job Category (e.g. Teaching, Driver)" />
+    <label>Deadline</label>
+    <input type="date" id="jobDeadline" />
+    <label>Optional Poster/Logo</label>
+    <input type="file" id="jobPoster" accept="image/*" />
+    <button onclick="submitJob()">Post Job</button>
+    <div class="note">
+      Note: Your location will be used to show how near/far the job is. <br />
+      Jobs expire after 3 months. If flagged by users, they may be reviewed or removed.
+    </div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+      authDomain: "vster-69f85.firebaseapp.com",
+      databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+      projectId: "vster-69f85",
+      storageBucket: "vster-69f85.appspot.com",
+      messagingSenderId: "332765437206",
+      appId: "1:332765437206:web:4903595014ed6d0fc10fc5"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const auth = firebase.auth();
+    const storage = firebase.storage();
+
+    let currentLat = null;
+    let currentLon = null;
+
+    function autoFillLocation() {
+      if (!navigator.geolocation) return alert("Geolocation not supported.");
+      navigator.geolocation.getCurrentPosition(pos => {
+        currentLat = pos.coords.latitude;
+        currentLon = pos.coords.longitude;
+        document.getElementById("jobArea").value = `📍 ${currentLat.toFixed(4)}, ${currentLon.toFixed(4)}`;
+      }, err => alert("Failed to get location: " + err.message));
+    }
+
+    function submitJob() {
+      const title = document.getElementById("jobTitle").value.trim();
+      const desc = document.getElementById("jobDesc").value.trim();
+      const area = document.getElementById("jobArea").value.trim();
+      const contact = document.getElementById("jobContact").value.trim();
+      const category = document.getElementById("jobCategory").value.trim();
+      const deadline = document.getElementById("jobDeadline").value;
+      const posterFile = document.getElementById("jobPoster").files[0];
+
+      if (!title || !desc || !area || !contact || !category || !deadline) {
+        return alert("Please fill in all required fields.");
+      }
+
+      if (new Date(deadline) < new Date()) {
+        return alert("Deadline cannot be in the past.");
+      }
+
+      auth.onAuthStateChanged(user => {
+        if (!user) return alert("You must be logged in.");
+        const uid = user.uid;
+
+        const jobData = {
+          title, desc, area, contact, category, deadline,
+          uid, timestamp: Date.now(),
+          boosted: false, likes: 0, flags: 0, comments: 0,
+          expiry: Date.now() + 90 * 24 * 60 * 60 * 1000 // 3 months from now
+        };
+
+        if (currentLat && currentLon) {
+          jobData.lat = currentLat;
+          jobData.lon = currentLon;
+        }
+
+        if (posterFile) {
+          const path = "job_posters/" + uid + "_" + Date.now() + "_" + posterFile.name;
+          storage.ref(path).put(posterFile).then(snapshot => {
+            snapshot.ref.getDownloadURL().then(url => {
+              jobData.posterURL = url;
+              db.ref("job_posts").push(jobData).then(() => {
+                alert("Job posted successfully.");
+                location.reload();
+              });
+            });
+          });
+        } else {
+          db.ref("job_posts").push(jobData).then(() => {
+            alert("Job posted successfully.");
+            location.reload();
+          });
+        }
+      });
+    }
+  </script>
+</body>
+</html>
