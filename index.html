@@ -1,4 +1,6 @@
-<!DOCTYPE html><html lang="en">
+<!-- Save as feeds.html -->
+<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -11,126 +13,313 @@
     header { background: #0bb35f; color: white; padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; }
     .logo { font-size: 1.3rem; font-weight: bold; }
     .location-weather { text-align: center; background: #e7f9ed; padding: 0.7rem; font-weight: bold; color: #0b6845; }
-    .search-bar { padding: 10px; display: flex; flex-direction: column; align-items: center; }
-    .search-bar input { padding: 10px; width: 90%; border: 1px solid #ccc; border-radius: 6px; margin-bottom: 10px; }
+    .search-bar { padding: 10px; text-align: center; }
+    .search-bar input { padding: 10px; width: 90%; border: 1px solid #ccc; border-radius: 6px; }
     .story-strip { display: flex; overflow-x: auto; padding: 10px; gap: 12px; }
-    .story-circle { width: 60px; height: 60px; border-radius: 50%; border: 2px solid #0bb35f; overflow: hidden; display: flex; align-items: center; justify-content: center; background: white; }
+    .story-circle { width: 60px; height: 60px; border-radius: 50%; overflow: hidden; border: 2px solid #0bb35f; }
     .story-circle img { width: 100%; height: 100%; object-fit: cover; }
     .feed { padding: 1rem; }
-    .post { background: white; padding: 1rem; margin-bottom: 1.5rem; border-radius: 10px; box-shadow: 0 1px 5px rgba(0,0,0,0.05); }
-    .post-image { width: 100%; border-radius: 8px; margin-bottom: 10px; max-height: 200px; object-fit: cover; }
-    .profile-pic { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; margin-right: 10px; }
-    .post-header { display: flex; align-items: center; margin-bottom: 10px; }
-    .badge { font-size: 0.85rem; padding: 3px 6px; border-radius: 6px; margin-left: 6px; background: #eee; color: #0bb35f; }
-    .like-bar { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
-    .reaction-icons span { font-size: 1.2rem; cursor: pointer; margin-right: 10px; }
-    nav.bottom-nav { position: fixed; bottom: 0; width: 100%; display: flex; background: #ffffff; box-shadow: 0 -2px 5px rgba(0,0,0,0.1); justify-content: space-around; border-top: 1px solid #ddd; }
-    nav.bottom-nav a { flex: 1; text-align: center; padding: 0.7rem 0; color: #0bb35f; text-decoration: none; font-size: 0.9rem; position: relative; }
-    .notif-dot { position: absolute; top: 5px; right: 30%; background: red; width: 10px; height: 10px; border-radius: 50%; }
-    .floating-button { position: fixed; bottom: 80px; right: 20px; background: #0bb35f; color: white; border: none; border-radius: 50%; width: 55px; height: 55px; font-size: 26px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); cursor: pointer; z-index: 100; }
-    #ridePopup { display: none; position: fixed; bottom: 100px; left: 20px; right: 20px; background: white; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.2); padding: 16px; text-align: center; z-index: 999; }
-    #reactionModal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 12px; box-shadow: 0 0 10px rgba(0,0,0,0.3); z-index: 9999; }
-    .emoji-row span { font-size: 2rem; margin: 0 8px; cursor: pointer; }
+    .post { background: #fff; padding: 1rem; border-radius: 10px; margin-bottom: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .post-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .profile-pic { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; cursor: pointer; }
+    .badge { background: #e0f5ea; color: #0bb35f; padding: 2px 6px; border-radius: 5px; font-size: 12px; margin-left: 5px; }
+    .post-image { width: 100%; border-radius: 8px; object-fit: cover; max-height: 220px; }
+    .like-bar { display: flex; justify-content: space-between; margin-top: 10px; font-size: 14px; }
+    .emoji-option { font-size: 22px; cursor: pointer; }
+    .reaction-counts { font-size: 13px; color: #333; margin-top: 5px; display: flex; gap: 10px; }
+    .floating-button { position: fixed; bottom: 70px; right: 20px; background: #0bb35f; color: white; border-radius: 50%; width: 55px; height: 55px; font-size: 26px; border: none; box-shadow: 0 2px 10px rgba(0,0,0,0.2); cursor: pointer; z-index: 10; }
+    nav.bottom-nav { position: fixed; bottom: 0; width: 100%; display: flex; background: #fff; border-top: 1px solid #ccc; justify-content: space-around; z-index: 5; }
+    nav a { flex: 1; text-align: center; padding: 10px 0; color: #0bb35f; text-decoration: none; font-size: 14px; }
+    #reactionModal, #modalBackdrop, #miniProfileModal, #transportPopup { position: fixed; z-index: 1000; }
+    #reactionModal { bottom: 0; left: 0; right: 0; background: white; padding: 10px; border-top-left-radius: 12px; border-top-right-radius: 12px; display: none; animation: slideUp 0.3s ease; }
+    #modalBackdrop { top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.3); display: none; }
+    #miniProfileModal { display: none; top: 50%; left: 50%; transform: translate(-50%,-50%); background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+    #transportPopup { top: 0; left: 0; right: 0; background: #fff3cd; color: #856404; padding: 12px; text-align: center; display: none; }
+    @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
   </style>
 </head>
 <body>
-  <header>
-    <div class="logo">BodaBiz</div>
-    <div class="login-link"><a href="login.html" style="color:white; text-decoration:none;">Login / Sign Up</a></div>
-  </header>  <div class="location-weather" id="locationDisplay">📍 Detecting location...</div>
-  <div class="search-bar">
-    <input type="text" id="searchBox" placeholder="Search anything..." oninput="filterFeed()" />
+
+<header>
+  <div class="logo">BodaBiz</div>
+  <div><a href="login.html" style="color:white; text-decoration:none;">Login / Sign Up</a></div>
+</header>
+
+<div class="location-weather" id="locationDisplay">📍 Detecting location...</div>
+<div id="transportPopup">🚚 Nearby transport options available. <button onclick="window.location.href='transport.html'">Book Now</button></div>
+<div class="search-bar"><input type="text" id="searchBox" placeholder="Search..." oninput="filterFeed()"/></div>
+<div class="story-strip" id="storyBar"></div>
+<div class="feed" id="feedContainer">Loading feed...</div>
+
+<!-- Floating Action Button -->
+<button class="floating-button" onclick="handleAddPost()">➕</button>
+
+<!-- Bottom Navigation -->
+<nav class="bottom-nav">
+  <a href="index.html">🏠 Feed</a>
+  <a href="category.html">📦 Categories</a>
+  <a href="messages.html">💬 messages</a>
+  <a href="profile.html">👤 Profile</a>
+</nav>
+
+<!-- Reaction Modal -->
+<div id="modalBackdrop" onclick="closeReactions()"></div>
+<div id="reactionModal">
+  React: 
+  <span class="emoji-option" onclick="react('like')">👍</span>
+  <div id="reactions-${p.id}" class="reaction-counts"></div>
+  <span class="emoji-option" onclick="react('love')">😍</span>
+  <span class="emoji-option" onclick="react('funny')">😂</span>
+  <span class="emoji-option" onclick="react('angry')">😡</span>
+  <span class="emoji-option" onclick="react('sad')">😢</span>
+</div>
+
+<!-- Mini Profile Modal -->
+<div id="miniProfileModal"><div id="miniProfileContent">Loading...</div></div>
+
+<!-- Firebase Config -->
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
+    authDomain: "vster-69f85.firebaseapp.com",
+    databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
+    projectId: "vster-69f85",
+    storageBucket: "vster-69f85.appspot.com",
+    messagingSenderId: "332765437206",
+    appId: "1:332765437206:web:4903595014ed6d0fc10fc5"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const auth = firebase.auth();
+  let currentReactPost = null;
+
+  // Location & Transport popup
+  navigator.geolocation?.getCurrentPosition(pos => {
+    fetch(`https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`)
+    .then(res => res.json())
+    .then(data => {
+      const loc = data.address?.city || data.address?.village || "Your Area"
+      userLocation = loc;
+      document.getElementById("locationDisplay").innerText = `📍 ${loc}`;
+     setTimeout(() => {
+  document.getElementById("transportPopup").style.display = "none";
+}, 10000);
+    });
+  });
+
+  function handleAddPost() {
+    auth.onAuthStateChanged(user => {
+      if (user) window.location.href = "create_post.html";
+      else window.location.href = "login.html";
+    });
+  }
+
+  function openReactions(postId) {
+    currentReactPost = postId;
+    document.getElementById("reactionModal").style.display = "block";
+    document.getElementById("modalBackdrop").style.display = "block";
+  }
+
+  function closeReactions() {
+    document.getElementById("reactionModal").style.display = "none";
+    document.getElementById("modalBackdrop").style.display = "none";
+  }
+
+  function react(type) {
+    const user = auth.currentUser;
+    if (!user || !currentReactPost) return;
+    db.ref(`reactions/${currentReactPost}/${type}/${user.uid}`).set(true);
+    closeReactions();
+  }
+function showMiniProfile(uid) {
+  db.ref(`users/${uid}`).once("value").then(snap => {
+    const d = snap.val();
+    auth.onAuthStateChanged(user => {
+      const isMe = user?.uid === uid;
+      const connectBtn = !isMe ? `<button onclick="connectToUser('${uid}')">🤝 Connect</button><br>` : '';
+
+      db.ref("connections/" + uid).once("value").then(connSnap => {
+        const connectionsCount = connSnap.numChildren();
+        document.getElementById("miniProfileContent").innerHTML = `
+          <b>${d.name}</b><br>${d.contact}<br>${d.bio || ''}<br>
+          <small>🤝 ${connectionsCount} Connections</small><br>
+          ${connectBtn}
+          <button onclick="document.getElementById('miniProfileModal').style.display='none'">Close</button>`;
+        document.getElementById("miniProfileModal").style.display = "block";
+      });
+    });
+  });
+}
+  
+
+  // Load & display posts
+  function loadPosts() {
+    db.ref("posts").once("value").then(snap => {
+      const posts = [];
+      snap.forEach(child => {
+        const post = child.val();
+        post.id = child.key;
+    const badge = (post.badge || '').toLowerCase();
+const area = (post.location || '').toLowerCase();
+const userArea = (userLocation || '').toLowerCase(); // make sure it's global
+
+if (
+  post.boosted === true ||
+  badge === 'global' ||
+  (badge === 'county' && area === userArea) ||
+  area === userArea
+) {
+  posts.push(post);
+}
+}
+}
+        auth.onAuthStateChanged(user => {
+  if (!user) {
+    renderFeed(posts);
+  } else {
+    db.ref(`hiddenPosts/${user.uid}`).once("value").then(hSnap => {
+      const hidden = hSnap.val() || {};
+      const filtered = posts.filter(p => !hidden[p.id]);
+      renderFeed(filtered);
+    });
+  }
+});
+      });
+
+      // Shuffle & sort by timestamp desc
+     posts.sort((a, b) => {
+  const score = p => (p.boosted ? 1000000 : 0) + (p.likes || 0) + (p.timestamp || 0);
+  return score(b) - score(a);
+});
+
+     function renderFeed(feedPosts) {
+       if (feedPosts.length === 0) {
+  document.getElementById("feedContainer").innerHTML = "<p style='text-align:center'>No posts available in your area yet.</p>";
+  return;
+}
+  document.getElementById("feedContainer").innerHTML = feedPosts.map(p => ``
+       <div class="post" id="post-${p.id}">
+        <div style="text-align:right">
+  <span onclick="hidePost('${p.id}')" style="cursor:pointer;font-weight:bold;">❌</span>
+</div>
+          <div class="post-header">
+            <img src="${p.profilePic || 'user.jpg'}" class="profile-pic" onclick="showMiniProfile('${p.uid}')">
+            <div>${p.name} ${p.badge ? `<span class="badge" title="Higher reach badge: ${p.badge}">${p.badge === 'global' ? '🌍 Global' : p.badge === 'county' ? '📍 County' : p.badge}</span>` : ''}</div>
+            ${p.boosted ? '<span style="color:#d48806;font-weight:bold;">🔥 Boosted</span>' : ''}
+          </div>
+          <img src="${p.image}" class="post-image">
+          <div class="like-bar">
+            <span onclick="openReactions('${p.id}')">💖 React</span>
+            <span onclick="toggleComments('${p.id}')">💬 Comment</span>
+            <span onclick="bookmarkPost('${p.id}')">🔖 Save</span>
+            <span onclick="navigator.share ? navigator.share({title:'BodaBiz', text:p.title, url:location.href}) : alert('Copy the link manually')">🔗 Share</span>
+            <span onclick="alert('Reported to admin')">⚠️ Report</span>
+          </div>
+         <div id="viewCount-${p.id}" style="font-size:12px;color:#666;">Views: Loading...</div>
+         <div id="comments-${p.id}" style="display:none;margin-top:10px;">
+  <div id="commentList-${p.id}" style="font-size:14px;color:#444;"></div>
+  <div id="commentInput-${p.id}" style="margin-top:5px;">
+    <input type="text" id="commentBox-${p.id}" placeholder="Write a comment..." style="width:80%;padding:6px;border:1px solid #ccc;border-radius:6px;">
+    <button onclick="submitComment('${p.id}')" style="padding:6px 10px;background:#0bb35f;color:white;border:none;border-radius:5px;">Send</button>
   </div>
-  <div id="storyBar" class="story-strip"></div>
-  <div class="feed" id="feedContainer">
-    <div class="post">
-      <div class="post-header">
-        <img src="user.jpg" class="profile-pic" alt="Profile" />
-        <strong>John Doe</strong> <span class="badge">Pro</span>
-      </div>
-      <img src="post.jpg" class="post-image" alt="Post" />
-      <div class="like-bar">
-        <div class="reaction-icons">
-          <span onclick="openReactionModal('post123')">❤️</span>
-          <span onclick="openReactionModal('post123')">😂</span>
-          <span onclick="openReactionModal('post123')">👍</span>
-        </div>
-      </div>
-    </div>
-  </div>  <div id="reactionModal">
-    <h4>Select Reaction</h4>
-    <div class="emoji-row">
-      <span onclick="submitReaction('😊')">😊</span>
-      <span onclick="submitReaction('🔥')">🔥</span>
-      <span onclick="submitReaction('😂')">😂</span>
-      <span onclick="submitReaction('❤️')">❤️</span>
-      <span onclick="submitReaction('👍')">👍</span>
-    </div>
-  </div>  <div id="ridePopup"></div>
-  <button class="floating-button" onclick="handleAddPost()">➕</button>  <nav class="bottom-nav">
-    <a href="index.html">🏠 Feeds</a>
-    <a href="category.html">📦 Categories</a>
-    <a href="chat.html" id="msgIcon">💬 <span id="msgDot" class="notif-dot" style="display:none;"></span></a>
-    <a href="profile.html">👤 Profile</a>
-  </nav>  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyBQkfy-WUWAP0O7hZyi_yqvOcg9vlrkFbY",
-      authDomain: "vster-69f85.firebaseapp.com",
-      databaseURL: "https://vster-69f85-default-rtdb.firebaseio.com",
-      projectId: "vster-69f85",
-      storageBucket: "vster-69f85.appspot.com",
-      messagingSenderId: "332765437206",
-      appId: "1:332765437206:web:4903595014ed6d0fc10fc5"
+</div>
+        </div>`).join("");
+
+      // Load reactions
+      posts.forEach(p => {
+        db.ref("reactions/" + p.id).once("value").then(rSnap => {
+          const counts = {};
+          rSnap.forEach(type => counts[type.key] = Object.keys(type.val()).length);
+          const out = Object.entries(counts).map(([type, count]) => {
+            const emoji = { like: "👍", love: "😍", funny: "😂", angry: "😡", sad: "😢" }[type];
+            return `${emoji} ${count}`;
+          }).join(" • ");
+          document.getElementById("reactions-" + p.id).innerText = out || "No reactions yet";
+          db.ref("views/" + p.id).once("value").then(vSnap => {
+  document.getElementById("viewCount-" + p.id).innerText = "Views: " + (vSnap.val() || 0);
+});
+        });
+      });
+    });
+  }
+  
+
+  // Initial load
+  loadPosts();
+
+  // Pull to refresh support
+  let startY;
+  window.addEventListener("touchstart", e => startY = e.touches[0].clientY);
+  window.addEventListener("touchend", e => {
+    if (e.changedTouches[0].clientY - startY > 100) loadPosts();
+  });
+  function connectToUser(targetUid) {
+  const user = auth.currentUser;
+  if (!user) return alert("Please log in to connect.");
+  db.ref(`connections/${targetUid}/${user.uid}`).set(true).then(() => {
+    alert("You're now connected!");
+  });
+}
+function bookmarkPost(postId) {
+  const user = auth.currentUser;
+  if (!user) return alert("Login to save posts");
+  db.ref("bookmarks/" + user.uid + "/" + postId).set(true).then(() => {
+    alert("Saved to bookmarks");
+  });
+}
+function hidePost(postId) {
+  const user = auth.currentUser;
+  if (!user) return alert("Login to hide posts");
+
+  db.ref(`hiddenPosts/${user.uid}/${postId}`).set(true).then(() => {
+    document.getElementById(`post-${postId}`)?.remove(); // Remove from DOM
+    alert("Post hidden");
+  });
+}
+function toggleComments(postId) {
+  const el = document.getElementById("comments-" + postId);
+  if (el.style.display === "none") {
+    el.style.display = "block";
+    loadComments(postId);
+  } else {
+    el.style.display = "none";
+  }
+}
+
+function loadComments(postId) {
+  db.ref("comments/" + postId).once("value").then(snap => {
+    let out = "";
+    snap.forEach(c => {
+      const data = c.val();
+      out += `<div><b>${data.name || "User"}</b>: ${data.text}</div>`;
+    });
+    document.getElementById("commentList-" + postId).innerHTML = out || "No comments yet.";
+  });
+}
+
+function submitComment(postId) {
+  const user = auth.currentUser;
+  if (!user) return window.location.href = "login.html";
+
+  const text = document.getElementById("commentBox-" + postId).value.trim();
+  if (!text) return;
+
+  db.ref("users/" + user.uid).once("value").then(uSnap => {
+    const userData = uSnap.val() || {};
+    const commentData = {
+      uid: user.uid,
+      name: userData.name || "User",
+      text: text,
+      timestamp: Date.now()
     };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-    const auth = firebase.auth();
+    db.ref("comments/" + postId).push(commentData).then(() => {
+      document.getElementById("commentBox-" + postId).value = "";
+      loadComments(postId);
+    });
+  });
+}
+let userLocation = '';
+</script>
 
-    let currentPostId = null;
-
-    function openReactionModal(postId) {
-      currentPostId = postId;
-      document.getElementById("reactionModal").style.display = "block";
-    }
-
-    function submitReaction(emoji) {
-      auth.onAuthStateChanged(user => {
-        if (!user) return alert("Please log in to react.");
-        db.ref(`reactions/${currentPostId}/${user.uid}`).set(emoji);
-        document.getElementById("reactionModal").style.display = "none";
-        alert("Reaction saved!");
-      });
-    }
-
-    function handleAddPost() {
-      auth.onAuthStateChanged(user => {
-        if (user) {
-          window.location.href = "create_post.html";
-        } else {
-          window.location.href = "login.html";
-        }
-      });
-    }
-
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(position => {
-        const lat = position.coords.latitude;
-        const lon = position.coords.longitude;
-        fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`)
-          .then(res => res.json())
-          .then(data => {
-            const place = data.address;
-            const area = place.village || place.town || place.city || place.county || place.region;
-            document.getElementById("locationDisplay").innerText = `📍 ${area}`;
-          })
-          .catch(() => {
-            document.getElementById("locationDisplay").innerText = "📍 Location detected";
-          });
-      }, () => {
-        document.getElementById("locationDisplay").innerText = "📍 Location unavailable";
-      });
-    } else {
-      document.getElementById("locationDisplay").innerText = "📍 Geolocation not supported";
-    }
-  </script></body>
+</body>
 </html>
