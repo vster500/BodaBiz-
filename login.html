@@ -91,10 +91,15 @@
       const error = document.getElementById("loginError");
       error.textContent = "";
 
-      auth.signInWithEmailAndPassword(email, password)
-        .then(() => window.location.href = "index.html")
-        .catch(e => error.textContent = e.message);
-    }
+     auth.signInWithEmailAndPassword(email, password)
+  .then(() => {
+    alert("✅ Login successful!");
+    window.location.href = "index.html";
+  })
+  .catch(e => {
+    alert("❌ Login failed: " + e.message);  // This shows popup
+    error.textContent = e.message;           // This shows message in red text
+  });}
 
     function signup() {
       const email = document.getElementById("signupEmail").value.trim();
