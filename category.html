@@ -115,9 +115,16 @@ firebase.auth().onAuthStateChanged(user => {
   }
   if (user) {
     db.ref("users/" + user.uid + "/profile/area").once("value", snap => {
-      userArea = snap.val() || "";
-      loadCommodities();
-    });
+  const area = snap.val();
+  if (area) {
+    userArea = area;
+    loadCommodities();
+  } else {
+    userArea = "Unknown";
+    alert("We couldn't detect your area. Showing general posts.");
+    loadCommodities();
+  }
+});
     db.ref("admin/delivery").once("value", snap => {
       const d = snap.val();
       if (d && d.price && d.phone) {
