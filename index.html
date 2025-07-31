@@ -96,7 +96,7 @@
 
   async function loadPosts() {
     const { data: posts, error } = await supabase
-      .from('post')  // ✅ Make sure your table is named 'post'
+      .from('Post')  // ✅ Make sure your table is named 'post'
       .select('*')
       .order('created_at', { ascending: false });
 
