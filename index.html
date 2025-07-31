@@ -6,21 +6,71 @@
   <title>BodaBiz - Feeds</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
   <style>
-    body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #f5fff7; color: #222; }
-    header { background: #0bb35f; color: white; padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; }
-    .logo { font-size: 1.3rem; font-weight: bold; }
-    .location-weather { text-align: center; background: #e7f9ed; padding: 0.7rem; font-weight: bold; color: #0b6845; }
-    .search-bar { padding: 10px; text-align: center; }
-    .search-bar input { padding: 10px; width: 90%; border: 1px solid #ccc; border-radius: 6px; }
-    .story-strip { display: flex; overflow-x: auto; padding: 10px; gap: 12px; }
-    .story-circle { width: 60px; height: 60px; border-radius: 50%; overflow: hidden; border: 2px solid #0bb35f; }
-    .story-circle img { width: 100%; height: 100%; object-fit: cover; }
-    .feed { padding: 1rem; }
-    .post { background: #fff; padding: 1rem; border-radius: 10px; margin-bottom: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    .post-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-    .profile-pic { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; cursor: pointer; }
-    .badge { background: #e0f5ea; color: #0bb35f; padding: 2px 6px; border-radius: 5px; font-size: 12px; margin-left: 5px; }
-    .post-image { width: 100%; border-radius: 8px; object-fit: cover; max-height: 220px; }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #f5fff7;
+      color: #222;
+    }
+    header {
+      background: #0bb35f;
+      color: white;
+      padding: 1rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .logo {
+      font-size: 1.3rem;
+      font-weight: bold;
+    }
+    .search-bar {
+      padding: 10px;
+      text-align: center;
+    }
+    .search-bar input {
+      padding: 10px;
+      width: 90%;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    .feed {
+      padding: 1rem;
+    }
+    .post {
+      background: #fff;
+      padding: 1rem;
+      border-radius: 10px;
+      margin-bottom: 1rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .post-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .profile-pic {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+      cursor: pointer;
+    }
+    .badge {
+      background: #e0f5ea;
+      color: #0bb35f;
+      padding: 2px 6px;
+      border-radius: 5px;
+      font-size: 12px;
+      margin-left: 5px;
+    }
+    .post-image {
+      width: 100%;
+      border-radius: 8px;
+      object-fit: cover;
+      max-height: 220px;
+    }
   </style>
 </head>
 <body>
@@ -30,35 +80,42 @@
   <div><a href="login.html" style="color:white; text-decoration:none;">Login / Sign Up</a></div>
 </header>
 
-<div class="location-weather" id="locationDisplay">📍 Detecting location...</div>
-<div class="search-bar"><input type="text" id="searchBox" placeholder="Search..."/></div>
-<div class="story-strip" id="storyBar"></div>
+<div class="search-bar">
+  <input type="text" id="searchBox" placeholder="Search..." oninput="filterPosts()" />
+</div>
+
 <div class="feed" id="feedContainer">Loading feed...</div>
 
-<!-- Supabase Integration -->
 <script>
-  document.addEventListener("DOMContentLoaded", async () => {
-    const supabase = window.supabase.createClient(
-      'https://exffevmgfzhxmvxjtoeq.supabase.co',
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4ZmZldm1nZnpoeG12eGp0b2VxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM5MzIxODksImV4cCI6MjA2OTUwODE4OX0.SztRb-FlzMThjwEyjAl4FfaZ5UN85uzIZUE5b6iNjzw'
-    );
+  const supabase = supabase.createClient(
+    'https://exffevmgfzhxmvxjtoeq.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4ZmZldm1nZnpoeG12eGp0b2VxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM5MzIxODksImV4cCI6MjA2OTUwODE4OX0.SztRb-FlzMThjwEyjAl4FfaZ5UN85uzIZUE5b6iNjzw'
+  );
 
+  let allPosts = [];
+
+  async function loadPosts() {
     const { data: posts, error } = await supabase
-      .from('post')
+      .from('post')  // ✅ Make sure your table is named 'post'
       .select('*')
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error("Failed to fetch posts:", error);
-      document.getElementById("feedContainer").innerHTML = "❌ Error loading feed";
+      console.error("Error loading posts:", error);
+      document.getElementById("feedContainer").innerHTML = "❌ Error loading feed.";
       return;
     }
 
     if (!posts || posts.length === 0) {
-      document.getElementById("feedContainer").innerHTML = "<p>No posts yet.</p>";
+      document.getElementById("feedContainer").innerHTML = "<p>No posts available.</p>";
       return;
     }
 
+    allPosts = posts;
+    renderPosts(posts);
+  }
+
+  function renderPosts(posts) {
     const feedHTML = posts.map(p => `
       <div class="post">
         <div class="post-header">
@@ -72,8 +129,19 @@
     `).join("");
 
     document.getElementById("feedContainer").innerHTML = feedHTML;
-  });
+  }
+
+  function filterPosts() {
+    const term = document.getElementById("searchBox").value.toLowerCase();
+    const filtered = allPosts.filter(p => 
+      (p.description || '').toLowerCase().includes(term) || 
+      (p.name || '').toLowerCase().includes(term)
+    );
+    renderPosts(filtered);
+  }
+
+  document.addEventListener("DOMContentLoaded", loadPosts);
 </script>
 
 </body>
-  </html>
+</html>
