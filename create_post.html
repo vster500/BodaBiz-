@@ -136,6 +136,8 @@
           imageUrl: imageUrl,
           userId: currentUser.uid,
           timestamp: Date.now()
+          lat: userProfile.lat || null,
+          plng: userProfile.lng || null,
         };
 
         if (titleField.style.display === "block" && title) {
