@@ -1,63 +1,43 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BodaBiz - Feeds</title>
+  <title>Test Supabase Post</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-  <style>
-    body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #f5fff7; color: #222; }
-    header { background: #0bb35f; color: white; padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; }
-    .logo { font-size: 1.3rem; font-weight: bold; }
-    .feed { padding: 1rem; }
-    .post { background: #fff; padding: 1rem; border-radius: 10px; margin-bottom: 1rem; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    .post-image { width: 100%; border-radius: 8px; object-fit: cover; max-height: 220px; }
-  </style>
 </head>
 <body>
+  <h1>Feed Test</h1>
+  <div id="feed">Loading...</div>
 
-<header>
-  <div class="logo">BodaBiz</div>
-</header>
+  <script>
+    const supabase = supabase.createClient(
+      'https://exffevmgfzhxmvxjtoeq.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4ZmZldm1nZnpoeG12eGp0b2VxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM5MzIxODksImV4cCI6MjA2OTUwODE4OX0.SztRb-FlzMThjwEyjAl4FfaZ5UN85uzIZUE5b6iNjzw'
+    );
 
-<div class="feed" id="feedContainer">Loading feed...</div>
+    async function loadPosts() {
+      const { data, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
 
-<script>
-  const supabase = supabase.createClient(
-    'https://exffevmgfzhxmvxjtoeq.supabase.co',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4ZmZldm1nZnpoeG12eGp0b2VxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTM5MzIxODksImV4cCI6MjA2OTUwODE4OX0.SztRb-FlzMThjwEyjAl4FfaZ5UN85uzIZUE5b6iNjzw'
-  );
+      if (error) {
+        document.getElementById('feed').innerText = '❌ Error: ' + error.message;
+        return;
+      }
 
-  async function loadPosts() {
-    const { data: posts, error } = await supabase
-      .from('posts')  // lowercase 'posts' since your table is lowercase
-      .select('*')
-      .order('created_at', { ascending: false });
+      if (!data || data.length === 0) {
+        document.getElementById('feed').innerText = 'No posts yet.';
+        return;
+      }
 
-    if (error) {
-      console.error("❌ Error loading posts:", error);
-      document.getElementById("feedContainer").innerText = "❌ Error loading feed.";
-      return;
+      document.getElementById('feed').innerHTML = data.map(post => `
+        <div style="border:1px solid #ccc; padding:10px; margin:10px;">
+          <h3>${post.title}</h3>
+          <p>${post.description}</p>
+          ${post.image_url ? `<img src="${post.image_url}" style="max-width:200px;">` : ''}
+        </div>
+      `).join("");
     }
 
-    if (!posts || posts.length === 0) {
-      document.getElementById("feedContainer").innerHTML = "<p>No posts yet.</p>";
-      return;
-    }
-
-    const feedHTML = posts.map(p => `
-      <div class="post">
-        <img src="${p.image_url}" class="post-image" />
-        <div style="margin-top:10px">${p.description || ""}</div>
-        <small>${new Date(p.created_at).toLocaleString()}</small>
-      </div>
-    `).join("");
-
-    document.getElementById("feedContainer").innerHTML = feedHTML;
-  }
-
-  document.addEventListener("DOMContentLoaded", loadPosts);
-</script>
-
+    loadPosts();
+  </script>
 </body>
 </html>
